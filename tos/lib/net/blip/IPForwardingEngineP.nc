@@ -104,6 +104,18 @@ module IPForwardingEngineP {
     /* no reason to support non-byte length prefixes for now... */
     if (prefix_len_bits % 8 != 0 || prefix_len_bits > 128) return ROUTE_INVAL_KEY;
     entry = call ForwardingTable.lookupRoute(prefix, prefix_len_bits);
+#ifdef RPL_SINGLE_HOP
+    /**
+     * In single-hop mode, we have already statically set the single hop route
+     * in IPNeighborDiscoveryP.  Here, we check to see if we already have a
+     * route for the given prefix before we add a new route.  If a route
+     * already exists, then we do not overwrite it. Else, the method continues
+     * as usual -- Gabe
+     */
+    if (entry != NULL && memcmp(&entry->prefix, next_hop, sizeof(struct in6_addr)) != 0)  {
+        return ROUTE_INVAL_KEY;
+    }
+#endif
     if (entry == NULL || entry->prefixlen != prefix_len_bits) {
       /* if there's no entry, or there's another entry but it has a
          different prefix length, we allocate a new slot in the
@@ -275,12 +287,12 @@ module IPForwardingEngineP {
 
     if (call IPAddress.isLocalAddress(&iph->ip6_dst)) {
       /* local delivery */
-      // printf("Local delivery\n");
       signal IP.recv(iph, payload, len, meta);
     } else {
       /* forwarding */
       uint8_t nxt_hdr = IPV6_ROUTING;
       int header_off = call IPPacket.findHeader(&v, iph->ip6_nxt, &nxt_hdr);
+      uint8_t i;
       if (!(--iph->ip6_hlim)) {
         /* ICMP may send time exceeded */
         // call ForwardingEvents.drop(iph, payload, len, ROUTE_DROP_HLIM);
@@ -298,15 +310,39 @@ module IPForwardingEngineP {
         struct route_entry *next_hop_entry =
           call ForwardingTable.lookupRoute(iph->ip6_dst.s6_addr,
                                            128);
+#ifdef RPL_SINGLE_HOP_ROOT
+        // if we are the root in a single hop network, we use the IN6_PREFIX
+        // in order to do the address translation
+        struct sockaddr_in6 local_prefix;
+        inet_pton6(IN6_PREFIX, &local_prefix.sin6_addr);
+#endif
+        
         if (next_hop_entry == NULL) {
           /* oops, no route. */
           /* RPL will reencapsulate the packet in some cases here */
           // call ForwardingEvents.drop(iph, payload, len, ROUTE_DROP_NOROUTE);
           return;
         }
+#ifdef RPL_SINGLE_HOP_ROOT
+        /** Check the first 64 bytes of our destination address. If it matches the IPv6
+         *  prefix for the 802.15.4 mesh, then we replace the prefix with the link-local
+         *  address, fe80 -- Gabe
+        **/
+        if (next_hop_entry->ifindex == 1 && // only do this for 802.15.4, not ethernet
+           iph->ip6_dst.s6_addr32[0] == local_prefix.sin6_addr.s6_addr32[0] &&
+           iph->ip6_dst.s6_addr32[1] == local_prefix.sin6_addr.s6_addr32[1] &&
+           iph->ip6_dst.s6_addr16[0] != 0) {
+               // our next hop should be the destination, but with the global ipv6 prefix switched for link-local
+               // overwrite first 64 bits of address
+               next_hop_entry->next_hop.s6_addr32[0] = htons(0xfe80);
+               next_hop_entry->next_hop.s6_addr32[1] = 0;
+               next_hop_entry->next_hop.s6_addr32[2] = iph->ip6_dst.s6_addr32[2];
+               next_hop_entry->next_hop.s6_addr32[3] = iph->ip6_dst.s6_addr32[3];
+        }
         next_hop = &next_hop_entry->next_hop;
         next_hop_ifindex = next_hop_entry->ifindex;
       }
+#endif
 
       memcpy(&pkt.ip6_hdr, iph, sizeof(struct ip6_hdr));
       pkt.ip6_data = &v;

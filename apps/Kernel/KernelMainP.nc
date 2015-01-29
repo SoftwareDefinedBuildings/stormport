@@ -144,7 +144,7 @@ implementation
 
         route_dest.sin6_port = htons(7000);
 
-        inet_pton6("2001:470:4885:ff::1", &route_dest.sin6_addr);
+        inet_pton6("2001:470:4956:1::1", &route_dest.sin6_addr);
 
         call Dmesg.bind(514);
 

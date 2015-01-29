@@ -68,24 +68,28 @@ implementation
     {
         irq_fired[scanport] &= ~(1<<scanpin);
     }
+
     async event void PortA_IRQ.fired[uint8_t id]()
     {
         uint32_t irqs = *((volatile uint32_t*)(0x400E1000 + 0x0D0)) & irq_allowed[0] & irq_enabled[0];
         irq_fired[0] |= irqs;
         *((volatile uint32_t*)(0x400E1000 + 0x0D8)) = irqs;
     }
+
     async event void PortB_IRQ.fired[uint8_t id]()
     {
         uint32_t irqs = *((volatile uint32_t*)(0x400E1200 + 0x0D0)) & irq_allowed[1] & irq_enabled[1];
         irq_fired[1] |= irqs;
         *((volatile uint32_t*)(0x400E1200 + 0x0D8)) = irqs;
     }
+
     async event void PortC_IRQ.fired[uint8_t id]()
     {
         uint32_t irqs = *((volatile uint32_t*)(0x400E1400 + 0x0D0)) & irq_allowed[2] & irq_enabled[2];
         irq_fired[2] |= irqs;
         *((volatile uint32_t*)(0x400E1400 + 0x0D8)) = irqs;
     }
+
     async command syscall_rv_t Driver.syscall_ex(
         uint32_t number, uint32_t arg0, 
         uint32_t arg1, uint32_t arg2, 

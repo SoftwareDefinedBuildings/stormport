@@ -27,7 +27,7 @@ CFLAGS += -DRF230_DEF_CHANNEL=26
 
 # Use IN6_PREFIX with static addressing modes
 #PFLAGS += -DIN6_PREFIX=\"2001:470:4889:a::\"
-PFLAGS += -DIN6_PREFIX=\"2001:470:4885:ff::\"
+PFLAGS += -DIN6_PREFIX=\"2001:470:4956:2::\"
 # Use BLIP Neighbor Discovery to autoconfigure an address
 #PFLAGS += -DBLIP_ADDR_AUTOCONF=0
 # Use RPL and prefix information in DIO messages to autoconfigure an address
@@ -70,6 +70,12 @@ PFLAGS += -DRPL_STORING_MODE=1
 # Choose the objective function RPL should use
 PFLAGS += -DRPL_OF_0=1
 PFLAGS += -DRPL_OF_MRHOF=0
+
+# If this is defined, then RPL will only send/receive from the following address. It will be added
+# as the default 802.15.4 route. If you are using a border router/root node, do not use this flag.
+#PFLAGS += -DRPL_SINGLE_HOP=\"fe80::212:6d02:0:feeb\"
+# if you are the root node of a single-hop network, use this flag and NOT RPL_SINGLE_HOP
+PFLAGS += -DRPL_SINGLE_HOP_ROOT
 
 ################################################################################
 ### Configure LPL

@@ -46,14 +46,14 @@ implementation
             mac[5] = address.data[7];
         }
         busy = FALSE;
-        destip = 0x0a040a32; //10.4.10.50
+        destip = 192 << 24 | 168 << 16 | 1 << 8 | 1;
         //destip = 0x0a040a8e; //10.4.10.150
         //destip = 0x0a040a87; // 10.4.10.135
         //destip = 0x364365f1; //54.67.101.241
         {
-            uint32_t srcip   = 10  << 24 | 4   << 16 | 10  << 8 | 146;
+            uint32_t srcip   = 192  << 24 | 168   << 16 | 1  << 8 | 4;
             uint32_t netmask = 255 << 24 | 255 << 16 | 255 << 8 | 0  ;
-            uint32_t gateway = 10  << 24 | 4   << 16 | 10  << 8 | 1  ;
+            uint32_t gateway = 192  << 24 | 168   << 16 | 1  << 8 | 1  ;
             //uint8_t *mac = "\xde\xad\xbe\xef\xfe\xec";
 
             call EthernetShieldConfig.initialize(srcip, netmask, gateway, mac);
@@ -62,12 +62,10 @@ implementation
         call RawSocket.initialize(41);
         call RootControl.setRoot();
     }
-    event void RawSocket.initializeDone(error_t error) {
 
-    }
+    event void RawSocket.initializeDone(error_t error) {}
+
     event void IPControl.stopDone (error_t error) {}
-
-
 
     command error_t IPForward.send(struct in6_addr *next_hop,
                                  struct ip6_packet *msg,

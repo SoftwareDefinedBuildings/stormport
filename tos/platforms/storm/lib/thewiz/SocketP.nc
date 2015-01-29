@@ -299,8 +299,8 @@ implementation
                 else if (sockettype == SocketType_IPRAW) signal RawSocket.initializeDone(SUCCESS);
                 isinitialized = 1;
                 call InitResource.release();
-                call GpioInterrupt.enableFallingEdge();
                 call IRQPin.makeInput();
+                post enableListen();
                 break;
                 
             case state_init_fail:
@@ -383,7 +383,7 @@ implementation
                     sendUDPstate = state_writeudp_writemorepacket;
                     call SocketSpi.writeRegister(tx_src_ptr, _txbuf, writesize); // write [writesize] bytes
                 }
-                else // it allf its
+                else // it all fits
                 {
                     memcpy(txbuf, senddata, senddata_len); // copy it all over
                     writesize = 0;
@@ -653,7 +653,6 @@ implementation
                 recvUDPstate = state_recv_init;
                 recvsize -= (packetlen + headerlength);
                 call RecvResource.release();
-                //call GpioInterrupt.enableFallingEdge();
                 recvipaddress = recvheader[3] | (recvheader[2] << 8) | (recvheader[1] << 16) | (recvheader[0] << 24);
                 recvport = ((uint16_t)recvheader[4] << 8) | recvheader[5];
 #ifndef BLIP_STFU
@@ -662,11 +661,11 @@ implementation
                 if (sockettype == SocketType_UDP) signal UDPSocket.packetReceived(recvport, recvipaddress, recvbuf, packetlen);
                 else if (sockettype == SocketType_IPRAW) signal RawSocket.packetReceived(recvbuf, packetlen);
 
-                if (recvsize > 0)
+                if (recvsize > 0) // another packet remaining
                 {
                     post recvUDP();
                 }
-                else
+                else // reenable interrupts and exit
                 {
                     post enableListen();
                 }
@@ -676,7 +675,7 @@ implementation
                 listeningUDP = 0;
                 recvUDPstate = state_recv_init;
                 call RecvResource.release();
-                call GpioInterrupt.enableFallingEdge();
+                post enableListen();
                 break;
         }
     }
