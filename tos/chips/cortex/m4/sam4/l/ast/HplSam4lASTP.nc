@@ -203,6 +203,7 @@ implementation
 
 	async command uint32_t HplSam4lAST.getAlarm()
 	{
+	    while(AST->sr.bits.busy == 1);
 		return AST->ar0;
 	}
 

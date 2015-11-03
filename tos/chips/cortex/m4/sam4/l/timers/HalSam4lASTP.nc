@@ -19,11 +19,9 @@ module HalSam4lASTP
 }
 implementation
 {
-    uint32_t alarmRunning;
 
     command error_t Init.init()
     {
-        alarmRunning = FALSE;
         call bscif.enableRC32K();
         call bpm.select32kInternal();
         call ASTClockCtl.enable();
@@ -87,51 +85,42 @@ implementation
     }
     async command void Alarm.startAt(uint32_t t0, uint32_t dt)
     {
-        uint32_t cv, t1;
-        call ast.disable();
-        call ast.disableAlarmIRQ();
-        call ast.clearAlarm();
-        cv = call ast.getCounterValue();
-        
-        atomic {
-            if (cv > (uint32_t) 0x7FFFFFFF) { // artificially overflow at 31 bits
-                cv &= (uint32_t) 0x7FFFFFFF;
-                call ast.setCounterValue(cv);
-            }
-        }
-        
-        // t1 is the counter value at which the timer should fire, on the 16 kHz timer
-        t1 = (t0 >> 1) + (dt >> 1) + (t0 & dt & 1);
-        
-        // t0 is the 16 kHz counter corresponding to the base time
-        t0 >>= 1;
-         
-        if (cv < t0) {
-            // t0 is guaranteed to be in the past, so if cv < t0, then that's because counter has overflowed
-            t1 &= (uint32_t) 0x7FFFFFFF;
-        }
-        
-        /*
-         * Now, t1 is the 16 kHz counter value when the Alarm should fire. It may be higher than 0x7FFFFFFF.
-         * But, that's OK, because it's correct relative to cv. It will fire on time, and then when the next
-         * alarm is started via this function, cv will be artificially wrapped before it is compared to t0
-         * and t1 of that function call.
-         *
-         * Note that there is absolutely no possibility of overflow in computing t1; since t1 represents a
-         * 16 kHz count and t0 and dt represent 32 kHz counts, their sum will not overflow t1. However, since
-         * t1 is computed as an offset from t0, it must be wrapped if cv wrapped, so that it is correct
-         * relative to cv (not necessarily relative to t0).
+        /* IMPLEMENTATION DETAILS
+         * The AST is a 16kHz clock that wraps at 32 bits. We want to provide the abstraction of a
+         * 32 kHz clock that wraps at 32 bits, or equivalently a 16 kHz clock that wraps at 31 bits.
+         * We can model the AST as two clocks:
+         * 1) A short clock that operates at 16 kHz and wraps at 31 bits
+         * 2) A long clock that operates at 16 kHz and wraps at 32 bits
+         * The code below calculates the counter value on the AST on the long clock, and calls the
+         * value cv. It converts t0 to a value on the short clock. Then it computes t1 = t0 + dt on
+         * the long clock.
          */
-        
-        if (cv < t0 || cv >= t1) {
-            // We need to fire the alarm right away, since it has already expired.
-            call ast.enable();
-            signal Alarm.fired();
-        } else {
-            // Wait until t1.
-            call ast.setAlarm(t1);
-            call ast.enableAlarmIRQ();
-            call ast.enable();
+
+        uint32_t cv, t1;
+        atomic {
+            call ast.disable();
+            call ast.disableAlarmIRQ();
+            call ast.clearAlarm();
+            
+            cv = (call ast.getCounterValue()) & (uint32_t) 0x7FFFFFFF;
+            t1 = (t0 >> 1) + (dt >> 1) + (t0 & dt & 1);
+            t0 >>= 1;
+             
+            if (t0 > cv) {
+                cv |= (uint32_t) 0x80000000;
+            }
+            
+            if (t1 <= cv) {
+                // Fire the alarm right away
+                call ast.enable();
+                signal Alarm.fired();
+            } else {
+                // Wait for t1 - cv ticks
+                call ast.setCounterValue(cv);
+                call ast.setAlarm(t1);
+                call ast.enableAlarmIRQ();
+                call ast.enable();
+            }
         }
     }
     async command uint32_t Alarm.getNow()
