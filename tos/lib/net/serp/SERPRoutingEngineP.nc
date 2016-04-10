@@ -2,6 +2,7 @@
 #include <lib6lowpan/in_cksum.h>
 #include <lib6lowpan/ip.h>
 #include "neighbor_discovery.h"
+#include <serp_messages.h>
 
 module SERPRoutingEngineP {
     provides {
@@ -15,11 +16,20 @@ module SERPRoutingEngineP {
         interface IPAddress;
         interface Ieee154Address;
         interface NeighborDiscovery;
+        interface SERPNeighborTable;
+        interface ForwardingTable;
     }
 } implementation {
 
 #define ADD_SECTION(SRC, LEN) ip_memcpy(cur, (uint8_t *)(SRC), LEN);\
   cur += (LEN); length += (LEN);
+
+  // SERP Routing values
+
+  // current hop count. Start at 0xff == infinity
+  uint8_t hop_count = 0xff;
+  // whether or not we are part of a mesh. This should be set to TRUE if we are a root node
+  bool part_of_mesh = FALSE;
 
   /**** Global Vars ***/
   // whether or not the routing protocol is running
@@ -60,6 +70,29 @@ module SERPRoutingEngineP {
     return 16;
   }
 
+/*
+ What's the logic for handling an incoming RA? When we receive an RA and we are *not* part of a mesh, we need
+ to become part of the mesh. The received RA contains:
+ - prefix for the mesh (and the prefix length)
+ - hop count of the sender
+ - power profile of the sender
+ What we need is a table of "neighbors" that indexes this heard information. Currently, we only send the mesh
+ info RA if we are part of a mesh, but if we change so we always send an RA, we can tell if a RA sender is part
+ of the mesh or not by what their hop count is (0xff == no, else yes).
+
+ Table is: serp_neighbor_t neighbors[MAX_NEIGHBOR_COUNT];
+ MAX_NEIGHBOR_COUNT needs to be calculated: we want the control message overhead to be below a certain
+ percentage, so MAX_NEIGHBOR_COUNT should be the maximum number of neighbors with whom the exchange of
+ control traffic is expected to be below a given amount. 
+ For now, lets just go with 10.
+
+ The neighbor table should support the following methods:
+ - find neighbor with lowest hop count
+ - find neighbor w/ lowest hop count, using power profile (see note below)
+ - remove neighbor
+ - add neighbor
+**/
+
   /***** Handle Incoming RA *****/
   event void IP_RA.recv(struct ip6_hdr *hdr,
                         void *packet,
@@ -74,6 +107,8 @@ module SERPRoutingEngineP {
     printf("received an RA in SERP from ");
     printf_in6addr(&hdr->ip6_src);
     printf("\n");
+
+    //TODO: what's the right behavior if it has a different prefix than ours?
 
     if (len < sizeof(struct nd_router_advertisement_t)) return;
     ra = (struct nd_router_advertisement_t*) packet;
@@ -94,10 +129,29 @@ module SERPRoutingEngineP {
       case ND6_SERP_MESH_INFO:
         {
             struct nd_option_serp_mesh_info_t* meshinfo;
+            serp_neighbor_t nn;
+            serp_neighbor_t *chosen_parent;
+
             meshinfo = (struct nd_option_serp_mesh_info_t*) cur;
             printf("Received a SERP Mesh Info message with pfx len: %d, power: %d and prefix ", meshinfo->prefix_length, meshinfo->powered);
             printf_in6addr(&meshinfo->prefix);
             printf("\n");
+
+            if (meshinfo->prefix_length > 0) {
+              call NeighborDiscovery.setPrefix(&meshinfo->prefix, meshinfo->prefix_length, 0xFF, 0xFF);
+            }
+
+            // populate a neighbor table entry
+            memcpy(&nn.ip, &hdr->ip6_src, sizeof(struct in6_addr));
+            nn.hop_count = meshinfo->sender_hop_count;
+            nn.power_profile = meshinfo->powered;
+            call SERPNeighborTable.addNeighbor(&nn);
+
+            // get the neighbor table entry with the lowest hop count
+            chosen_parent = call SERPNeighborTable.getLowestHopCount();
+            // we set our hop count to be one greater than the hop count of the parent we've chosen
+            hop_count = chosen_parent->hop_count + 1;
+
             break;
         }
       default:
@@ -113,7 +167,7 @@ module SERPRoutingEngineP {
   // probably hasn't joined the mesh yet. This is sent as a
   // unicast in response to a received RS
   // Most of this implementation is taken from IPNeighborDiscoveryP
-  task void send_RA_to_new() {
+  task void send_mesh_info_RA() {
     struct nd_router_advertisement_t ra;
 
     struct ip6_packet pkt;
@@ -151,7 +205,8 @@ module SERPRoutingEngineP {
         struct nd_option_serp_mesh_info_t option;
         option.type = ND6_SERP_MESH_INFO;
         option.option_length = 3;
-        option.reserved = 0;
+        option.reserved1 = 0;
+        option.reserved2 = 0;
         // add prefix length
         option.prefix_length = call NeighborDiscovery.getPrefixLength();
         // add prefix
@@ -159,6 +214,7 @@ module SERPRoutingEngineP {
         // treat all nodes as powered for now
         // TODO: fix this!
         option.powered = SERP_MAINS_POWERED;
+        option.sender_hop_count = hop_count;
         ADD_SECTION(&option, sizeof(struct nd_option_serp_mesh_info_t));
     }
 
@@ -190,8 +246,12 @@ module SERPRoutingEngineP {
     printf("\n");
     memcpy(&unicast_ra_destination, &(hdr->ip6_src), sizeof(struct in6_addr));
 
-    // send our unicast reply
-    post send_RA_to_new();
+    // send our unicast reply with the mesh info
+    if (part_of_mesh) {
+        post send_mesh_info_RA();
+    } else {
+        //TODO: send the normal RA to populate the neighbor table?
+    }
   }
 
   /***** StdControl *****/
@@ -211,6 +271,8 @@ module SERPRoutingEngineP {
   /***** RootControl *****/
   command error_t RootControl.setRoot() {
     I_AM_ROOT = TRUE;
+    part_of_mesh = TRUE;
+    hop_count = 0;
     //call RPLRankInfo.declareRoot();
     return SUCCESS;
   }

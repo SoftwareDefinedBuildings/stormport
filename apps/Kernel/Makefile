@@ -85,7 +85,7 @@ PFLAGS += -DLIB6LOWPAN_HC_VERSION=6
 ################################################################################
 
 # Include the RPL layer if set to 1
-PFLAGS += -DRPL_ROUTING=1
+PFLAGS += -DRPL_ROUTING=0
 
 # If set keep routing information in each node. If not the root must keep all
 # routing information.

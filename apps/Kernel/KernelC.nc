@@ -64,7 +64,6 @@ implementation
     KernelMainP.Timer -> Timer32khzC;
 
     components UdpC, IPDispatchC;
-    components RPLRoutingC;
     components SERPRoutingC;
 
     components PlatformSerialC;

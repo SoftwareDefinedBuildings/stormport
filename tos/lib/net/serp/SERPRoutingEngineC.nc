@@ -12,6 +12,7 @@ configuration SERPRoutingEngineC {
 
 implementation {
     components RandomC;
+    components IPStackC;
     components new TimerMilliC() as TrickleTimer;
     components IPAddressC, Ieee154AddressC;
 
@@ -20,6 +21,8 @@ implementation {
     components new ICMPCodeDispatchC(ICMP_TYPE_ROUTER_ADV) as ICMP_RA;
 
     components new TrickleTimerMilliC(1, 1024, 1, 1);
+
+    components SERPNeighborTableP;
 
     components SERPRoutingEngineP as Routing;
     Routing.RootControl = RootControl;
@@ -30,5 +33,7 @@ implementation {
     Routing.IPAddress -> IPAddressC;
     Routing.Ieee154Address -> Ieee154AddressC.Ieee154Address;
     Routing.NeighborDiscovery = NeighborDiscovery;
+    Routing.SERPNeighborTable -> SERPNeighborTableP;
+    Routing.ForwardingTable -> IPStackC;
     StdControl = Routing;
 }
