@@ -34,7 +34,10 @@ module SERPNeighborTableP {
             if (!neighbor_table[i].valid) break;
         }
         // add ourselves to this entry
-        neighbor_table[i] = *neighbor;
+        memcpy(&neighbor_table[i].ip, &neighbor->ip, sizeof(struct in6_addr));
+        neighbor_table[i].hop_count = neighbor->hop_count;
+        neighbor_table[i].power_profile = neighbor->power_profile;
+        neighbor_table[i].valid = 1;
         return SUCCESS;
     }
 

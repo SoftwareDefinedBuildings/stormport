@@ -8,9 +8,7 @@
 #include <icmp6.h>
 
 /*** constants for SERP ***/
-#ifndef MAX_SERP_NEIGHBOR_COUNT
 #define MAX_SERP_NEIGHBOR_COUNT 10
-#endif
 
 /*** SERP structs ***/
 typedef enum {

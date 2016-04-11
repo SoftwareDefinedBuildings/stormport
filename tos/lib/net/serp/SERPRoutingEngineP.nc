@@ -30,6 +30,8 @@ module SERPRoutingEngineP {
   uint8_t hop_count = 0xff;
   // whether or not we are part of a mesh. This should be set to TRUE if we are a root node
   bool part_of_mesh = FALSE;
+  // number of outstanding RS messages
+  uint8_t outstanding_RS_messages = 0;
 
   /**** Global Vars ***/
   // whether or not the routing protocol is running
@@ -83,7 +85,7 @@ module SERPRoutingEngineP {
  Table is: serp_neighbor_t neighbors[MAX_NEIGHBOR_COUNT];
  MAX_NEIGHBOR_COUNT needs to be calculated: we want the control message overhead to be below a certain
  percentage, so MAX_NEIGHBOR_COUNT should be the maximum number of neighbors with whom the exchange of
- control traffic is expected to be below a given amount. 
+ control traffic is expected to be below a given amount.
  For now, lets just go with 10.
 
  The neighbor table should support the following methods:
@@ -131,6 +133,7 @@ module SERPRoutingEngineP {
             struct nd_option_serp_mesh_info_t* meshinfo;
             serp_neighbor_t nn;
             serp_neighbor_t *chosen_parent;
+            struct route_entry* entry;
 
             meshinfo = (struct nd_option_serp_mesh_info_t*) cur;
             printf("Received a SERP Mesh Info message with pfx len: %d, power: %d and prefix ", meshinfo->prefix_length, meshinfo->powered);
@@ -147,10 +150,15 @@ module SERPRoutingEngineP {
             nn.power_profile = meshinfo->powered;
             call SERPNeighborTable.addNeighbor(&nn);
 
+            //TODO: somehow cache the last parent so we don't have to recompute this every single time.
             // get the neighbor table entry with the lowest hop count
             chosen_parent = call SERPNeighborTable.getLowestHopCount();
+            printf("Choosing a parent as default route: IP addr ");
+            printf_in6addr(&chosen_parent->ip);
+            printf(" w/ hop count %d and power profile %d\n", chosen_parent->hop_count, chosen_parent->power_profile);
             // we set our hop count to be one greater than the hop count of the parent we've chosen
             hop_count = chosen_parent->hop_count + 1;
+            call ForwardingTable.addRoute(NULL, 0, &chosen_parent->ip, ROUTE_IFACE_154);
 
             break;
         }
@@ -230,6 +238,9 @@ module SERPRoutingEngineP {
     // Send unicast RA to the link local address
     memcpy(&pkt.ip6_hdr.ip6_dst, &unicast_ra_destination, 16);
 
+    // reset this when we send
+    outstanding_RS_messages = 0;
+
     // set the src address to our link layer address
     call IPAddress.getLLAddr(&pkt.ip6_hdr.ip6_src);
     call IP_RA.send(&pkt);
@@ -245,6 +256,9 @@ module SERPRoutingEngineP {
     printf_in6addr(&hdr->ip6_src);
     printf("\n");
     memcpy(&unicast_ra_destination, &(hdr->ip6_src), sizeof(struct in6_addr));
+
+    // increment the number of outstanding RS messages we have to respond to
+    outstanding_RS_messages++;
 
     // send our unicast reply with the mesh info
     if (part_of_mesh) {
