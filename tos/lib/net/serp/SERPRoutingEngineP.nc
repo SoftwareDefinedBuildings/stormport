@@ -33,6 +33,10 @@ module SERPRoutingEngineP {
   // number of outstanding RS messages
   uint8_t outstanding_RS_messages = 0;
 
+  struct in6_addr BCAST_ADDRESS;
+
+  struct in6_addr preferred_parent;
+
   /**** Global Vars ***/
   // whether or not the routing protocol is running
   bool running = FALSE;
@@ -160,6 +164,9 @@ module SERPRoutingEngineP {
             hop_count = chosen_parent->hop_count + 1;
             call ForwardingTable.addRoute(NULL, 0, &chosen_parent->ip, ROUTE_IFACE_154);
 
+            // make a note of our preferred parent
+            memcpy(&preferred_parent, &chosen_parent->ip, sizeof(struct in6_addr));
+
             break;
         }
       default:
@@ -246,6 +253,72 @@ module SERPRoutingEngineP {
     call IP_RA.send(&pkt);
   }
 
+  task void send_mesh_announcement_RA() {
+    struct nd_router_advertisement_t ra;
+
+    struct ip6_packet pkt;
+    struct ip_iovec   v[1];
+
+
+    uint8_t sllao_len;
+    uint8_t data[120];
+    uint8_t* cur = data;
+    uint16_t length = 0;
+
+    ra.icmpv6.type = ICMP_TYPE_ROUTER_ADV;
+    ra.icmpv6.code = ICMPV6_CODE_RA;
+    ra.icmpv6.checksum = 0;
+    ra.hop_limit = 16;
+    ra.flags_reserved = 0;
+    ra.flags_reserved |= RA_FLAG_MANAGED_ADDR_CONF << ND6_ADV_M_SHIFT;
+    ra.flags_reserved |= RA_FLAG_OTHER_CONF << ND6_ADV_O_SHIFT;
+    ra.router_lifetime = RTR_LIFETIME;
+    ra.reachable_time = 0; // unspecified at this point...
+    ra.retransmit_time = 0; // unspecified at this point...
+    ADD_SECTION(&ra, sizeof(struct nd_router_advertisement_t));
+
+    // add announcement option
+    // TODO: only send if hop_count < 0xff?
+    {
+        int i;
+        int n_idx = 0;
+        struct nd_option_serp_mesh_announcement_t option;
+        struct route_entry *default_route;
+        serp_neighbor_t *neighbor;
+
+        option.type = ND6_SERP_MESH_ANN;
+        option.option_length = 4;
+        option.reserved1 = 0;
+        option.hop_count = hop_count;
+        // default route:
+        default_route = call ForwardingTable.lookupRoute(NULL, 0);
+        memcpy(&option.parent, &default_route->next_hop, sizeof(struct in6_addr));
+        // populate the list of downstream neighbors
+        for (i=0;i<MAX_SERP_NEIGHBOR_COUNT;i++) {
+            neighbor = call SERPNeighborTable.getNeighbor(i);
+            if (!neighbor->valid) continue;
+            if (neighbor->hop_count < hop_count) continue;
+            memcpy(option.neighbors[n_idx], &neighbor->ip.s6_addr[15], sizeof(node_id));
+            n_idx++;
+        }
+        ADD_SECTION(&option, sizeof(struct nd_option_serp_mesh_announcement_t));
+    }
+
+    v[0].iov_base = data;
+    v[0].iov_len = length;
+    v[0].iov_next = NULL;
+
+    pkt.ip6_hdr.ip6_nxt = IANA_ICMP;
+    pkt.ip6_hdr.ip6_plen = htons(length);
+
+    pkt.ip6_data = &v[0];
+    // Send multicast RA
+    memcpy(&pkt.ip6_hdr.ip6_dst, &BCAST_ADDRESS, 16);
+    // set the src address to our link layer address
+    call IPAddress.getLLAddr(&pkt.ip6_hdr.ip6_src);
+    call IP_RA.send(&pkt);
+  }
+
   /***** Handle Incoming RS *****/
   // When we receive an RS
   event void IP_RS.recv(struct ip6_hdr *hdr,
@@ -270,6 +343,7 @@ module SERPRoutingEngineP {
 
   /***** StdControl *****/
   command error_t StdControl.start() {
+    inet_pton6(IPV6_ADDR_ALL_ROUTERS, &BCAST_ADDRESS);
     if (!running) {
         post init();
         running = TRUE;

@@ -9,6 +9,7 @@
 
 /*** constants for SERP ***/
 #define MAX_SERP_NEIGHBOR_COUNT 10
+#define IPV6_ADDR_ALL_ROUTERS "ff02::2"
 
 /*** SERP structs ***/
 typedef enum {
@@ -16,6 +17,18 @@ typedef enum {
     SERP_MAINS_POWERED = 0xFF
 } serp_power_type;
 
+typedef struct {
+    struct in6_addr ip;
+    uint8_t hop_count;
+    serp_power_type power_profile;
+    int valid:1; // used for the neighbor table
+} serp_neighbor_t;
+
+typedef uint8_t node_id[2]; 
+
+/*** Routing options ***/
+
+// Router Advertisement - Mesh Info
 // option attached to a router advertisement that
 // is unicast do a node petititioning to be part of
 // the mesh
@@ -38,11 +51,26 @@ struct nd_option_serp_mesh_info_t {
     struct in6_addr prefix;
 };
 
-typedef struct {
-    struct in6_addr ip;
+// Router Advertisement - Mesh Announcement
+// option attached to RA messages to announce to the mesh
+// - preferred parent (e.g. default route)
+// - list of reachable downstream neighbors
+struct nd_option_serp_mesh_announcement_t {
+    // ND6_SERP_MESH_ANN
+    uint8_t type;
+    // option length is 3 (3 << 3 bytes)
+    uint8_t option_length;
+    // hop count
     uint8_t hop_count;
-    serp_power_type power_profile;
-    int valid:1; // used for the neighbor table
-} serp_neighbor_t;
+    // should be 0
+    uint8_t reserved1;
+    // list of reachable neighbors
+    // TODO: right now this uses unique 2-byte identifiers for
+    // nodes. We'll want to do prefix encoding for compression of
+    // the ful 64-bit lower addresses
+    node_id neighbors[8];
+    // the preferred parent/default route chosen
+    struct in6_addr parent;
+};
 
 #endif
