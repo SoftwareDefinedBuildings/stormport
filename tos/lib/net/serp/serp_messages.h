@@ -62,8 +62,8 @@ struct nd_option_serp_mesh_announcement_t {
     uint8_t option_length;
     // hop count
     uint8_t hop_count;
-    // should be 0
-    uint8_t reserved1;
+    // number of neighbors included
+    uint8_t neighbor_count;
     // list of reachable neighbors
     // TODO: right now this uses unique 2-byte identifiers for
     // nodes. We'll want to do prefix encoding for compression of

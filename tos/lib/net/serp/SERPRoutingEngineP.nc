@@ -18,6 +18,7 @@ module SERPRoutingEngineP {
         interface NeighborDiscovery;
         interface SERPNeighborTable;
         interface ForwardingTable;
+        interface Timer<TMilli> as RouterAdvMeshAnnTimer;
     }
 } implementation {
 
@@ -169,6 +170,19 @@ module SERPRoutingEngineP {
 
             break;
         }
+      case ND6_SERP_MESH_ANN:
+        {
+            int i = 0;
+            struct nd_option_serp_mesh_announcement_t* announcement;
+            node_id *reachable_node;
+            announcement = (struct nd_option_serp_mesh_announcement_t*) cur;
+            printf("Received a SERP Announcement message\n");
+            for (i=0;i<announcement.neighbor_count;i++) {
+                reachable_node = announcement.neighbors[i];
+                // TODO: add to forwarding table
+                //call ForwardingTable.addRoute(
+            }
+        }
       default:
         break;
       }
@@ -288,7 +302,6 @@ module SERPRoutingEngineP {
 
         option.type = ND6_SERP_MESH_ANN;
         option.option_length = 4;
-        option.reserved1 = 0;
         option.hop_count = hop_count;
         // default route:
         default_route = call ForwardingTable.lookupRoute(NULL, 0);
@@ -301,6 +314,7 @@ module SERPRoutingEngineP {
             memcpy(option.neighbors[n_idx], &neighbor->ip.s6_addr[15], sizeof(node_id));
             n_idx++;
         }
+        option.neighbor_count = n_idx;
         ADD_SECTION(&option, sizeof(struct nd_option_serp_mesh_announcement_t));
     }
 

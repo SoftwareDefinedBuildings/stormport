@@ -14,6 +14,7 @@ implementation {
     components RandomC;
     components IPStackC;
     components new TimerMilliC() as TrickleTimer;
+    components new TimerMilliC() as RouterAdvMeshAnnTimer;
     components IPAddressC, Ieee154AddressC;
 
    // components new ICMPCodeDispatchC(ICMP_TYPE_SERP_CONTROL) as ICMP_RS;
@@ -35,5 +36,6 @@ implementation {
     Routing.NeighborDiscovery = NeighborDiscovery;
     Routing.SERPNeighborTable -> SERPNeighborTableP;
     Routing.ForwardingTable -> IPStackC;
+    Routing.RouterAdvMeshAnnTimer -> RouterAdvMeshAnnTimer;
     StdControl = Routing;
 }
