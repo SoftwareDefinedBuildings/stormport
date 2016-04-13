@@ -49,9 +49,15 @@ implementation
     components LocalIeeeEui64P;
 
     KernelMainP.RadioControl ->  IPStackC;
-#ifndef NO_RPL
+#if RPL_ROUTING
+    components RPLRoutingC;
     KernelMainP.RPLControl -> RPLRoutingC;
     KernelMainP.RootControl -> RPLRoutingC;
+#else
+#if SERP_ROUTING
+    components SERPRoutingC;
+    KernelMainP.RootControl -> SERPRoutingC;
+#endif
 #endif
     KernelMainP.NeighborDiscovery ->  IPStackC;
     KernelMainP.SetIPAddress -> IPAddressC;
@@ -64,7 +70,6 @@ implementation
     KernelMainP.Timer -> Timer32khzC;
 
     components UdpC, IPDispatchC;
-    components SERPRoutingC;
 
     components PlatformSerialC;
     KernelMainP.UartStream -> PlatformSerialC;
@@ -85,7 +90,7 @@ implementation
     components new SocketC();
     components EthernetShieldConfigC;
     EthernetP.IPControl -> IPStackC;
-    EthernetP.RootControl -> RPLRoutingC;
+    EthernetP.RootControl -> SERPRoutingC;
     EthernetP.ForwardingTable -> IPStackC;
     EthernetP.RawSocket -> SocketC;
     EthernetP.FlashAttr -> FlashAttrC;

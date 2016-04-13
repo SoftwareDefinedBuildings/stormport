@@ -111,9 +111,9 @@ module SERPRoutingEngineP {
     uint8_t type;
     uint8_t olen;
 
-    printf("received an RA in SERP from ");
+    printf("\033[33;1mreceived an RA in SERP from ");
     printf_in6addr(&hdr->ip6_src);
-    printf("\n");
+    printf("\n\033[0m");
 
     //TODO: what's the right behavior if it has a different prefix than ours?
 
@@ -139,34 +139,57 @@ module SERPRoutingEngineP {
             serp_neighbor_t nn;
             serp_neighbor_t *chosen_parent;
             struct route_entry* entry;
+            error_t err;
+
+            // do not process if we are root
+            if (I_AM_ROOT) break;
 
             meshinfo = (struct nd_option_serp_mesh_info_t*) cur;
-            printf("Received a SERP Mesh Info message with pfx len: %d, power: %d and prefix ", meshinfo->prefix_length, meshinfo->powered);
+            printf("\033[33;1mReceived a SERP Mesh Info message with pfx len: %d, power: %d, hop_count: %d and prefix ", meshinfo->prefix_length, meshinfo->powered, meshinfo->sender_hop_count);
             printf_in6addr(&meshinfo->prefix);
-            printf("\n");
+            printf("\n\033[0m");
 
             if (meshinfo->prefix_length > 0) {
-              call NeighborDiscovery.setPrefix(&meshinfo->prefix, meshinfo->prefix_length, 0xFF, 0xFF);
+              call NeighborDiscovery.setPrefix(&meshinfo->prefix, meshinfo->prefix_length, IP6_INFINITE_LIFETIME, IP6_INFINITE_LIFETIME);
+              printf("\033[31;0mSetting prefix from meshinfo msg to ");
+              printf_in6addr(&meshinfo->prefix);
+              printf("\n\033[0m");
             }
 
             // populate a neighbor table entry
             memcpy(&nn.ip, &hdr->ip6_src, sizeof(struct in6_addr));
             nn.hop_count = meshinfo->sender_hop_count;
             nn.power_profile = meshinfo->powered;
-            call SERPNeighborTable.addNeighbor(&nn);
+            err = call SERPNeighborTable.addNeighbor(&nn);
+            if (err != SUCCESS) {
+                printf("\033[31;0mError adding to serp neighbor table\n\033[0m");
+                break;
+            }
 
             //TODO: somehow cache the last parent so we don't have to recompute this every single time.
             // get the neighbor table entry with the lowest hop count
             chosen_parent = call SERPNeighborTable.getLowestHopCount();
+            if (chosen_parent == NULL) {
+                printf("\033[33;1mNo parent w/ lowest hop count\n\033[0m");
+            }
             printf("Choosing a parent as default route: IP addr ");
             printf_in6addr(&chosen_parent->ip);
             printf(" w/ hop count %d and power profile %d\n", chosen_parent->hop_count, chosen_parent->power_profile);
             // we set our hop count to be one greater than the hop count of the parent we've chosen
             hop_count = chosen_parent->hop_count + 1;
-            call ForwardingTable.addRoute(NULL, 0, &chosen_parent->ip, ROUTE_IFACE_154);
+            call ForwardingTable.addRoute(NULL, 0, &hdr->ip6_src, ROUTE_IFACE_154);
 
             // make a note of our preferred parent
             memcpy(&preferred_parent, &chosen_parent->ip, sizeof(struct in6_addr));
+
+            // pritn out our current address
+            {
+                struct in6_addr x;
+                call IPAddress.getGlobalAddr(&x);
+                printf("GLOBAL ADDR ");
+                printf_in6addr(&x);
+                printf("\n");
+            }
 
             break;
         }
@@ -177,8 +200,8 @@ module SERPRoutingEngineP {
             node_id *reachable_node;
             announcement = (struct nd_option_serp_mesh_announcement_t*) cur;
             printf("Received a SERP Announcement message\n");
-            for (i=0;i<announcement.neighbor_count;i++) {
-                reachable_node = announcement.neighbors[i];
+            for (i=0;i<announcement->neighbor_count;i++) {
+                reachable_node = &announcement->neighbors[i];
                 // TODO: add to forwarding table
                 //call ForwardingTable.addRoute(
             }
@@ -239,7 +262,10 @@ module SERPRoutingEngineP {
         // add prefix length
         option.prefix_length = call NeighborDiscovery.getPrefixLength();
         // add prefix
-        ip_memcpy((uint8_t*) &option.prefix, (uint8_t*)call NeighborDiscovery.getPrefix(), sizeof(struct in6_addr));
+        memcpy(&option.prefix, call NeighborDiscovery.getPrefix(), sizeof(struct in6_addr));
+            printf("\033[33;1mSending a SERP Mesh Info message with pfx len: %d, power: %d, hop_count: %d and prefix ", option.prefix_length, option.powered, option.sender_hop_count);
+            printf_in6addr(&option.prefix);
+            printf("\n\033[0m");
         // treat all nodes as powered for now
         // TODO: fix this!
         option.powered = SERP_MAINS_POWERED;
@@ -339,9 +365,9 @@ module SERPRoutingEngineP {
                         void *packet,
                         size_t len,
                         struct ip6_metadata *meta) {
-    printf("received an RS in SERP from ");
+    printf("\033[33;1mreceived an RS in SERP from ");
     printf_in6addr(&hdr->ip6_src);
-    printf("\n");
+    printf("\033[0m\n");
     memcpy(&unicast_ra_destination, &(hdr->ip6_src), sizeof(struct in6_addr));
 
     // increment the number of outstanding RS messages we have to respond to
@@ -353,6 +379,9 @@ module SERPRoutingEngineP {
     } else {
         //TODO: send the normal RA to populate the neighbor table?
     }
+  }
+
+  event void RouterAdvMeshAnnTimer.fired() {
   }
 
   /***** StdControl *****/
@@ -372,6 +401,7 @@ module SERPRoutingEngineP {
 
   /***** RootControl *****/
   command error_t RootControl.setRoot() {
+    printf("\033[31;0Setting root!\n\033[0m");
     I_AM_ROOT = TRUE;
     part_of_mesh = TRUE;
     hop_count = 0;

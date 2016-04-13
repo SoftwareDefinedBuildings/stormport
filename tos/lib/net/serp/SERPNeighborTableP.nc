@@ -35,6 +35,9 @@ module SERPNeighborTableP {
         }
         // add ourselves to this entry
         memcpy(&neighbor_table[i].ip, &neighbor->ip, sizeof(struct in6_addr));
+        printf("\033[31;0mAdding SERP neighbor table with IP ");
+        printf_in6addr(&neighbor_table[i].ip);
+        printf("\n\033[0m");
         neighbor_table[i].hop_count = neighbor->hop_count;
         neighbor_table[i].power_profile = neighbor->power_profile;
         neighbor_table[i].valid = 1;
@@ -53,14 +56,14 @@ module SERPNeighborTableP {
 
         for (i=0; i < MAX_SERP_NEIGHBOR_COUNT; i++) {
             entry = &neighbor_table[i];
-            if (entry->hop_count < hop_count) {
+            if (entry->valid && (entry->hop_count < hop_count)) {
                 hop_count = entry->hop_count;
                 lowest_index = i;
             }
         }
 
         // we want to fail if:
-        if ((hop_count = 0xFF) || // if the hop count is still infinity
+        if ((hop_count == 0xFF) || // if the hop count is still infinity
             (lowest_index == MAX_SERP_NEIGHBOR_COUNT)) { // or if we didn't find anything
             return NULL;
         }

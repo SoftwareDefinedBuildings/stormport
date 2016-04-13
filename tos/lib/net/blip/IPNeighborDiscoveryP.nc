@@ -196,6 +196,10 @@ module IPNeighborDiscoveryP {
 
   command void NeighborDiscovery.setPrefix(struct in6_addr* newprefix,
     uint8_t length, uint32_t valid_lifetime, uint32_t preferred_lifetime) {
+#if SERP_ROUTING
+    // fail early
+    if (prefix_exists) return;
+#endif
     // Check if the prefix has changed
     if (!compare_ipv6(newprefix, &prefix) || (length != prefix_length)) {
       ip_memcpy((uint8_t*) &prefix, (uint8_t*) newprefix,
@@ -204,6 +208,9 @@ module IPNeighborDiscoveryP {
       prefix_valid_lifetime = valid_lifetime;
       prefix_preferred_lifetime = preferred_lifetime;
       prefix_exists = TRUE;
+    printf("\033[37;1mMesh prefix setting ");
+    printf_in6addr(newprefix);
+    printf("\n\033[0m");
     }
   }
 
@@ -438,6 +445,11 @@ module IPNeighborDiscoveryP {
 #ifndef BLIP_STFU
     printf("IPNeighborDiscovery - RA recv\n");
 #endif
+#if SERP_ROUTING
+    // stop processing early
+    call RSTimer.stop();
+    return;
+#endif
     if (len < sizeof(struct nd_router_advertisement_t)) return;
     ra = (struct nd_router_advertisement_t*) packet;
 
@@ -504,6 +516,7 @@ module IPNeighborDiscoveryP {
               ND6_OPT_PREFIX_A_SHIFT;
 
           if (A && pio->prefix_length > 0) {
+              printf("\033[31;0mSetting prefix from ra pfx opt msg\n\033[0m");
             call NeighborDiscovery.setPrefix(&pio->prefix, pio->prefix_length,
               pio->valid_lifetime, pio->preferred_lifetime);
 

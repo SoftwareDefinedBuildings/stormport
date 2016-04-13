@@ -53,10 +53,10 @@ module KernelMainP
     {
         interface Boot;
         interface SplitControl as RadioControl;
-#ifndef NO_RPL
+#if RPL_ROUTING
         interface StdControl as RPLControl;
-        interface RootControl;
 #endif
+        interface RootControl;
         interface FlashAttr;
         interface Timer<T32khz> as Timer;
         interface UartStream;
@@ -165,6 +165,7 @@ implementation
         uint8_t val_len;
 
 
+#if !BLIP_ADDR_AUTOCONF
         e = call FlashAttr.getAttr(2, key, val, &val_len);
         if (e != SUCCESS)
         {
@@ -185,6 +186,7 @@ implementation
             printf("\n\033[0m");
             call SetIPAddress.setAddress(&newprefix);
         }
+#endif
 
 
         call RadioControl.start();
@@ -196,12 +198,13 @@ implementation
         call Timer.startPeriodic(320000);
 #endif
 
-#ifndef NO_RPL
 #ifdef BORDER_ROUTER
         call RootControl.setRoot();
 #else
         call RootControl.unsetRoot();
 #endif
+
+#if RPL_ROUTING
         call RPLControl.start();
 #endif
 

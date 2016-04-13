@@ -73,7 +73,9 @@ module IPForwardingEngineP {
 
   command error_t Init.init() {
     memset(routing_table, 0, sizeof(routing_table));
+#if !BLIP_ADDR_AUTOCONF
     post getPrefix();
+#endif
   }
 
   int alloc_key() {
@@ -375,11 +377,17 @@ module IPForwardingEngineP {
 
 
         if (next_hop_entry == NULL) {
+          printf("no route found\n");
           /* oops, no route. */
           /* RPL will reencapsulate the packet in some cases here */
           // call ForwardingEvents.drop(iph, payload, len, ROUTE_DROP_NOROUTE);
           return;
         }
+        printf("    found route next_hop ");
+        printf_in6addr(&next_hop_entry->next_hop);
+        printf(" for sending to ");
+        printf_in6addr(&iph->ip6_dst);
+        printf("\n");
 #ifdef RPL_SINGLE_HOP_ROOT
         /** Check the first 64 bytes of our destination address. If it matches the IPv6
          *  prefix for the 802.15.4 mesh, then we replace the prefix with the link-local
@@ -396,9 +404,9 @@ module IPForwardingEngineP {
                next_hop_entry->next_hop.s6_addr32[2] = iph->ip6_dst.s6_addr32[2];
                next_hop_entry->next_hop.s6_addr32[3] = iph->ip6_dst.s6_addr32[3];
         }
+#endif
         next_hop = &next_hop_entry->next_hop;
         next_hop_ifindex = next_hop_entry->ifindex;
-#endif
       }
 
       memcpy(&pkt.ip6_hdr, iph, sizeof(struct ip6_hdr));
@@ -408,8 +416,12 @@ module IPForwardingEngineP {
       /* give the routing protocol a chance to do data-path validation
          on this packet. */
       /* RPL uses this to update the flow label fields */
+      printf("\033[35;0approve forwarding of pk w/ next hop ");
+      printf_in6addr(next_hop);
+      printf("\n\033[0m");
       if (!(signal ForwardingEvents.approve[next_hop_ifindex](&pkt, next_hop)))
         return;
+      printf("do send\n");
 
       do_send(next_hop_ifindex, next_hop, &pkt);
     }
