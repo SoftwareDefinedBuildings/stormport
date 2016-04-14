@@ -4,10 +4,12 @@
 configuration SERPRoutingC {
   provides {
     interface RootControl;
+    interface StdControl as SERPControl;
   }
 } implementation {
     components SERPRoutingEngineC;
     components IPNeighborDiscoveryC;
     RootControl = SERPRoutingEngineC.RootControl;
+    SERPControl = SERPRoutingEngineC.SERPControl;
     SERPRoutingEngineC.NeighborDiscovery -> IPNeighborDiscoveryC;
 }

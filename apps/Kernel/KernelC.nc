@@ -56,6 +56,7 @@ implementation
 #else
 #if SERP_ROUTING
     components SERPRoutingC;
+    KernelMainP.SERPControl -> SERPRoutingC;
     KernelMainP.RootControl -> SERPRoutingC;
 #endif
 #endif

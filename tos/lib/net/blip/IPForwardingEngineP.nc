@@ -330,12 +330,16 @@ module IPForwardingEngineP {
       .iov_base = payload,
       .iov_len  = len,
     };
+    printf("\033[34;1mrecv packet");
+    printf_in6addr(&iph->ip6_dst);
+    printf("\033[0m\n");
 
     /* signaled before *any* processing  */
     signal IPRaw.recv(iph, payload, len, meta);
 
     if (call IPAddress.isLocalAddress(&iph->ip6_dst)) {
       /* local delivery */
+      printf("\033[34;1mlocal delivery\033[0m\n");
       // check neighbor blacklist
       if (!call NeighborBlacklist.ignored(&iph->ip6_src)) {
           signal IP.recv(iph, payload, len, meta);
@@ -345,6 +349,7 @@ module IPForwardingEngineP {
       uint8_t nxt_hdr = IPV6_ROUTING;
       int header_off = call IPPacket.findHeader(&v, iph->ip6_nxt, &nxt_hdr);
       uint8_t i;
+      printf("\033[34;1mforwarding \033[0m\n");
       if (!(--iph->ip6_hlim)) {
         /* ICMP may send time exceeded */
         // call ForwardingEvents.drop(iph, payload, len, ROUTE_DROP_HLIM);

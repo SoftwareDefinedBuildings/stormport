@@ -24,9 +24,11 @@ module NeighborBlacklistP {
     struct blacklist_entry blacklist_table[ROUTE_TABLE_SZ];
 
     void printIgnore(struct in6_addr *addr) {
+#ifndef BLIP_STFU
         printf("\033[31;1mIgnoring");
         printf_in6addr(addr);
         printf("\n\033[0m");
+#endif
     }
 
     /**
@@ -81,9 +83,9 @@ module NeighborBlacklistP {
         int i;
         struct blacklist_entry *entry;
         if (!blacklist_table[i].valid) { 
-            printf("\nIgnore list empty\n");
             return; 
         }
+#ifndef BLIP_STFU
         printf("\n\nIgnoring following neighbors:\n");
         for (i = 0; i < ROUTE_TABLE_SZ; i++) {
             entry = &blacklist_table[i];
@@ -94,6 +96,7 @@ module NeighborBlacklistP {
             }
         }
         printf("\n");
+#endif
     }
 
     command error_t NeighborBlacklist.unignore(struct in6_addr *neighbor) {

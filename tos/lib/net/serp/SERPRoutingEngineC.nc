@@ -3,7 +3,7 @@
 configuration SERPRoutingEngineC {
     provides {
         interface RootControl;
-        interface StdControl;
+        interface StdControl as SERPControl;
         //interface SERPRoutingEngine;
     } uses {
         interface NeighborDiscovery;
@@ -37,5 +37,5 @@ implementation {
     Routing.SERPNeighborTable -> SERPNeighborTableP;
     Routing.ForwardingTable -> IPStackC;
     Routing.RouterAdvMeshAnnTimer -> RouterAdvMeshAnnTimer;
-    StdControl = Routing;
+    SERPControl = Routing;
 }

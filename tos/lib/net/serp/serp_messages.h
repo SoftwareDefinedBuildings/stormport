@@ -9,6 +9,7 @@
 
 /*** constants for SERP ***/
 #define MAX_SERP_NEIGHBOR_COUNT 10
+#define MAX_SERP_NEIGHBOR_MSG 2
 #define IPV6_ADDR_ALL_ROUTERS "ff02::2"
 
 /*** SERP structs ***/
@@ -23,8 +24,6 @@ typedef struct {
     serp_power_type power_profile;
     int valid:1; // used for the neighbor table
 } serp_neighbor_t;
-
-typedef uint8_t node_id[2]; 
 
 /*** Routing options ***/
 
@@ -68,7 +67,7 @@ struct nd_option_serp_mesh_announcement_t {
     // TODO: right now this uses unique 2-byte identifiers for
     // nodes. We'll want to do prefix encoding for compression of
     // the ful 64-bit lower addresses
-    node_id neighbors[8];
+    uint16_t neighbors[2];
     // the preferred parent/default route chosen
     struct in6_addr parent;
 };

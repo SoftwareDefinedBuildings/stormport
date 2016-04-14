@@ -56,6 +56,9 @@ module KernelMainP
 #if RPL_ROUTING
         interface StdControl as RPLControl;
 #endif
+#if SERP_ROUTING
+        interface StdControl as SERPControl;
+#endif
         interface RootControl;
         interface FlashAttr;
         interface Timer<T32khz> as Timer;
@@ -206,6 +209,10 @@ implementation
 
 #if RPL_ROUTING
         call RPLControl.start();
+#endif
+
+#if SERP_ROUTING
+        call SERPControl.start();
 #endif
 
         call ENSEN.makeOutput();

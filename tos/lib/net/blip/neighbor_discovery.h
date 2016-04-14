@@ -26,7 +26,7 @@ enum {
   ND6_OPT_REDIRECT_HEADER = 4,
   ND6_OPT_MTU = 5,
   ND6_SERP_MESH_INFO = 6,
-  ND6_SERP_MESH_ANN = 7
+  ND6_SERP_MESH_ANN = 8
 };
 
 enum {
