@@ -9,8 +9,9 @@
 
 /*** constants for SERP ***/
 #define MAX_SERP_NEIGHBOR_COUNT 10
-#define MAX_SERP_NEIGHBOR_MSG 2
+#define MAX_SERP_NEIGHBOR_MSG 4
 #define IPV6_ADDR_ALL_ROUTERS "ff02::2"
+#define WAIT_BEFORE_SEND_ANNOUNCEMENT 5000 //  5 seconds
 
 /*** SERP structs ***/
 typedef enum {
@@ -22,7 +23,7 @@ typedef struct {
     struct in6_addr ip;
     uint8_t hop_count;
     serp_power_type power_profile;
-    int valid:1; // used for the neighbor table
+    bool valid;
 } serp_neighbor_t;
 
 /*** Routing options ***/
@@ -42,10 +43,10 @@ struct nd_option_serp_mesh_info_t {
     serp_power_type powered;
     // the hop count from a border router of the sender
     uint8_t sender_hop_count;
+    uint8_t neighbor_count;
     // should be 0
-    uint8_t reserved1;
-    // should be 0
-    uint16_t reserved2;
+    uint16_t reserved1;
+    uint16_t neighbors[4];
     // the prefix of the mesh
     struct in6_addr prefix;
 };
@@ -67,9 +68,26 @@ struct nd_option_serp_mesh_announcement_t {
     // TODO: right now this uses unique 2-byte identifiers for
     // nodes. We'll want to do prefix encoding for compression of
     // the ful 64-bit lower addresses
-    uint16_t neighbors[2];
+    uint16_t neighbors[4];
     // the preferred parent/default route chosen
     struct in6_addr parent;
 };
+
+/*** debugging ***/
+
+#define RED     "\033[31m"      /* Red */
+#define GREEN   "\033[32m"      /* Green */
+#define YELLOW  "\033[33m"      /* Yellow */
+#define BLUE    "\033[34m"      /* Blue */
+#define MAGENTA "\033[35m"      /* Magenta */
+#define CYAN    "\033[36m"      /* Cyan */
+#define WHITE   "\033[37m"      /* White */
+#define RESET   "\033[0m"
+
+#define SENDC   YELLOW
+#define RECVC   GREEN
+#define ERRORC  RED
+#define INFOC   WHITE
+
 
 #endif

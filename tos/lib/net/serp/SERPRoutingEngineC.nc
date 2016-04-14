@@ -11,9 +11,11 @@ configuration SERPRoutingEngineC {
 }
 
 implementation {
+    components MainC;
     components RandomC;
     components IPStackC;
     components new TimerMilliC() as TrickleTimer;
+    components new TimerMilliC() as PrintTimer;
     components new TimerMilliC() as RouterAdvMeshAnnTimer;
     components IPAddressC, Ieee154AddressC;
 
@@ -24,6 +26,7 @@ implementation {
     components new TrickleTimerMilliC(1, 1024, 1, 1);
 
     components SERPNeighborTableP;
+    SERPNeighborTableP.Init <- MainC.SoftwareInit;
 
     components SERPRoutingEngineP as Routing;
     Routing.RootControl = RootControl;
@@ -37,5 +40,6 @@ implementation {
     Routing.SERPNeighborTable -> SERPNeighborTableP;
     Routing.ForwardingTable -> IPStackC;
     Routing.RouterAdvMeshAnnTimer -> RouterAdvMeshAnnTimer;
+    Routing.PrintTimer -> PrintTimer;
     SERPControl = Routing;
 }

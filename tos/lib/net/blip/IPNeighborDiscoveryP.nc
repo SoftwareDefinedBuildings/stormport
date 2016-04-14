@@ -196,10 +196,6 @@ module IPNeighborDiscoveryP {
 
   command void NeighborDiscovery.setPrefix(struct in6_addr* newprefix,
     uint8_t length, uint32_t valid_lifetime, uint32_t preferred_lifetime) {
-#if SERP_ROUTING
-    // fail early
-    if (prefix_exists) return;
-#endif
     // Check if the prefix has changed
     if (!compare_ipv6(newprefix, &prefix) || (length != prefix_length)) {
       ip_memcpy((uint8_t*) &prefix, (uint8_t*) newprefix,
