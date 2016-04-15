@@ -11,20 +11,8 @@ when there is nothing more to remove
 
 ## Implementation Plan
 
-When there's time...
-* [ ] Disable the usual router solicitation stuff
-* [ ] Broadcast Router Solicitation messages on a trickle timer
-* ~~[ ] Implement the custom RS option containing the right info~~
-  I'm pretty sure we don't have custom RS options?
-* [x] Make sure we can trigger on a received RS
-* [ ] Generate an RA in response to RS that has our payload info
-  This payload info is:
-    * our prefix
-    * our hop count
-    * whether or not we are powered
-
-Here we make notes on implementation details
-
+* [ ] need a trigger when a packet fails to send -- need to rebuilt routing
+* [ ] need to build up alternative routing tables when we hear neighbors in another message
 
 ## Trickle Timer
 

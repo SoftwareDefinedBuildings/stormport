@@ -30,7 +30,7 @@ module SERPRoutingEngineP {
   (!memcmp((node1), (node2), sizeof(struct in6_addr)))
 
   // Trickle values
-  uint16_t trickle_time = 1; // in seconds
+  uint16_t trickle_time = 2; // in seconds
   uint16_t trickle_max = 10 * 60; // 10 minutes
 
   // SERP Routing values
@@ -218,12 +218,20 @@ module SERPRoutingEngineP {
             if (meshinfo->neighbor_count == 0 || i == meshinfo->neighbor_count) { // we were not in the list
                 printf(ERRORC "%x Was not in neighbor list \n" RESET, htons(our_address.s6_addr16[7]));
                 // save the unicast destination
-                memcpy(&unicast_rs_destination, &hdr->ip6_src, sizeof(struct in6_addr));
-                if (call RSTrickleTimer.isRunning()) {
-                  call RSTrickleTimer.stop();
+                //memcpy(&unicast_rs_destination, &hdr->ip6_src, sizeof(struct in6_addr));
+                if (!call RSTrickleTimer.isRunning()) {
+                  trickle_time = 2;
+                  call RSTrickleTimer.startOneShot(call Random.rand32() % (trickle_time*1000));
                 }
-                trickle_time = 1;
-                call RSTrickleTimer.startOneShot(trickle_time*1000);
+            } else {
+                call RSTrickleTimer.stop();
+                // if msg was from our preferred parent, then we cancel any RA annoucemenet
+                if ((hdr->ip6_src.s6_addr32[2] == preferred_parent.ip.s6_addr32[2]) &&
+                    (hdr->ip6_src.s6_addr32[3] == preferred_parent.ip.s6_addr32[3])) {
+
+                  printf(INFOC "Parent has us, so we good\n", RESET);
+                  call RouterAdvMeshAnnTimer.stop();
+                }
             }
 
             // wait some time before sending the announcement to make sure we have a change to
@@ -454,7 +462,7 @@ module SERPRoutingEngineP {
     pkt.ip6_hdr.ip6_plen = htons(length);
 
     pkt.ip6_data = &v[0];
-    // Send multicast RA
+    // Send unicast RA
     memcpy(&pkt.ip6_hdr.ip6_dst, &preferred_parent.ip, 16);
     // set the src address to our link layer address
     call IPAddress.getLLAddr(&pkt.ip6_hdr.ip6_src);
@@ -499,9 +507,12 @@ module SERPRoutingEngineP {
         printf(ERRORC "1Error adding to serp neighbor table\n" RESET);
     }
 
-    // send our unicast reply with the mesh info
+    // send our bcast reply with the mesh info
     if (part_of_mesh) {
-        post send_mesh_info_RA();
+        if (!call RouterAdvMeshAnnTimer.isRunning()) {
+            call RouterAdvMeshAnnTimer.startOneShot(1000);
+            //post send_mesh_info_RA();
+        }
     } else {
         //TODO: send the normal RA to populate the neighbor table?
     }
