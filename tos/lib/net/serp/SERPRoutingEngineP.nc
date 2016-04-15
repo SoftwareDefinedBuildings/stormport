@@ -208,7 +208,7 @@ module SERPRoutingEngineP {
                     break;
                 }
             }
-            if (i == meshinfo->neighbor_count) { // we were not in the list
+            if (meshinfo->neighbor_count == 0 || i == meshinfo->neighbor_count) { // we were not in the list
                 printf(ERRORC "%x Was not in neighbor list \n" RESET, htons(our_address.s6_addr16[7]));
                 // save the unicast destination
                 memcpy(&unicast_rs_destination, &hdr->ip6_src, sizeof(struct in6_addr));
@@ -270,6 +270,7 @@ module SERPRoutingEngineP {
             break;
         }
       default:
+        printf(ERRORC "unrecognized option type %d\n" RESET, type);
         break;
       }
       cur += olen;
@@ -324,7 +325,7 @@ module SERPRoutingEngineP {
 
         memset(&option, 0, sizeof(struct nd_option_serp_mesh_info_t));
         option.type = ND6_SERP_MESH_INFO;
-        option.option_length = 4;
+        option.option_length = 5;
         option.reserved1 = 0;
         // add prefix length
         option.prefix_length = call NeighborDiscovery.getPrefixLength();
@@ -406,7 +407,7 @@ module SERPRoutingEngineP {
         serp_neighbor_t *neighbor;
 
         option.type = ND6_SERP_MESH_ANN;
-        option.option_length = 4;
+        option.option_length = 6;
         option.hop_count = hop_count;
         // default route:
         default_route = call ForwardingTable.lookupRoute(NULL, 0);

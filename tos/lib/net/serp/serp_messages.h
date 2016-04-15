@@ -46,7 +46,7 @@ struct nd_option_serp_mesh_info_t {
     uint8_t neighbor_count;
     // should be 0
     uint16_t reserved1;
-    uint16_t neighbors[4];
+    uint16_t neighbors[8];
     // the prefix of the mesh
     struct in6_addr prefix;
 };
@@ -68,7 +68,7 @@ struct nd_option_serp_mesh_announcement_t {
     // TODO: right now this uses unique 2-byte identifiers for
     // nodes. We'll want to do prefix encoding for compression of
     // the ful 64-bit lower addresses
-    uint16_t neighbors[4];
+    uint16_t neighbors[8];
     // the preferred parent/default route chosen
     struct in6_addr parent;
 };
