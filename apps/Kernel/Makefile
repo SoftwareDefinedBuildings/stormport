@@ -32,7 +32,7 @@ endif
 
 # radio options
 # CFLAGS += -DCC2420_DEF_CHANNEL=26
-CFLAGS += -DRF230_DEF_CHANNEL=24
+CFLAGS += -DRF230_DEF_CHANNEL=22
 # CFLAGS += -DCC2420_DEF_RFPOWER=4 -DENABLE_SPI0_DMA
 
 # enable dma on the radio
@@ -92,7 +92,7 @@ PFLAGS += -DRPL_OF_0=1
 PFLAGS += -DRPL_OF_MRHOF=0
 
 # if NO_RPL is defined, then *hopefully* no rpl messages should be sent, freeing up the airwaves
-PFLAGS += -DNO_RPL
+#PFLAGS += -DNO_RPL
 
 ################################################################################
 ### Configure LPL
