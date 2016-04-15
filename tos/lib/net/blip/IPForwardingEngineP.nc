@@ -449,7 +449,7 @@ module IPForwardingEngineP {
 
 #ifdef PRINTFUART_ENABLED
   event void PrintTimer.fired() {
-    #ifndef BLIP_STFU
+    //#ifndef BLIP_STFU
     int i, ctr=0;
     static char print_buf[44];
     char* buf;
@@ -476,7 +476,7 @@ module IPForwardingEngineP {
     printf("\n");
     call NeighborBlacklist.listIgnored();
     //printfflush();
-    #endif
+    //#endif
   }
 #endif
 
