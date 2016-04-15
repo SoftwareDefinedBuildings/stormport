@@ -30,7 +30,7 @@ implementation {
 
     components SERPRoutingEngineP as Routing;
     Routing.RootControl = RootControl;
-    //Routing.TrickleTimer -> TrickleTimerMilliC;
+    Routing.RSTrickleTimer -> TrickleTimer;
     Routing.Random -> RandomC;
     Routing.IP_RA -> ICMP_RA.IP[ICMPV6_CODE_RA];
     Routing.IP_RS -> ICMP_RS.IP[ICMPV6_CODE_RS];

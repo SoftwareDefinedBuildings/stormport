@@ -20,6 +20,7 @@ module SERPRoutingEngineP {
         interface ForwardingTable;
         interface Timer<TMilli> as RouterAdvMeshAnnTimer;
         interface Timer<TMilli> as PrintTimer;
+        interface Timer<TMilli> as RSTrickleTimer;
     }
 } implementation {
 
@@ -27,6 +28,10 @@ module SERPRoutingEngineP {
   cur += (LEN); length += (LEN);
 #define compare_ipv6(node1, node2) \
   (!memcmp((node1), (node2), sizeof(struct in6_addr)))
+
+  // Trickle values
+  uint16_t trickle_time = 1; // in seconds
+  uint16_t trickle_max = 10 * 60; // 10 minutes
 
   // SERP Routing values
 
@@ -69,6 +74,8 @@ module SERPRoutingEngineP {
         // by clients that want to join
         post startMeshAdvertising();
     } else {
+        memcpy(&unicast_rs_destination, &BCAST_ADDRESS, sizeof(struct in6_addr));
+        call RSTrickleTimer.startOneShot(trickle_time*1000);
     }
   }
 
@@ -212,7 +219,11 @@ module SERPRoutingEngineP {
                 printf(ERRORC "%x Was not in neighbor list \n" RESET, htons(our_address.s6_addr16[7]));
                 // save the unicast destination
                 memcpy(&unicast_rs_destination, &hdr->ip6_src, sizeof(struct in6_addr));
-                post send_rs_task();
+                if (call RSTrickleTimer.isRunning()) {
+                  call RSTrickleTimer.stop();
+                }
+                trickle_time = 1;
+                call RSTrickleTimer.startOneShot(trickle_time*1000);
             }
 
             // wait some time before sending the announcement to make sure we have a change to
@@ -276,6 +287,7 @@ module SERPRoutingEngineP {
       cur += olen;
       len -= olen;
     }
+
   }
 
   /***** Send Router Advertisement *****/
@@ -340,7 +352,7 @@ module SERPRoutingEngineP {
         // want to attach our neighbors
         for (i=0;i<MAX_SERP_NEIGHBOR_COUNT;i++) {
             neighbor = call SERPNeighborTable.getNeighbor(i);
-            if (n_idx == 4) continue; // limited?
+            if (n_idx == MAX_SERP_NEIGHBOR_MSG) continue; // limited?
             if (!neighbor->valid) continue;
             memcpy(&option.neighbors[n_idx], &neighbor->ip.s6_addr16[7], sizeof(uint16_t));
             printf(INFOC "to mesh info msg add neighbor %x\n" RESET, option.neighbors[n_idx]);
@@ -582,6 +594,18 @@ module SERPRoutingEngineP {
         call SERPNeighborTable.printNeighbor(i);
       }
       printf(RESET);
+  }
+
+  event void RSTrickleTimer.fired() {
+    printf(INFOC "TRICKLE FIRE %d\n" RESET, trickle_time);
+    trickle_time <<= 1;
+    if (trickle_time > trickle_max) {
+        trickle_time = trickle_max;
+    }
+    post send_rs_task();
+    if (!part_of_mesh) {
+      call RSTrickleTimer.startOneShot(trickle_time * 1000);
+    }
   }
 
   task void send_rs_task () {

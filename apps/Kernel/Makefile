@@ -18,7 +18,7 @@ else
 #	  #as the default 802.15.4 route. If you are using a border router/root node, do not use this flag.
 #	  PFLAGS += -DRPL_SINGLE_HOP=\"fe80::212:6d02:0:400d\"
 	PFLAGS += -DBLIP_ADDR_AUTOCONF=1
-	PFLAGS += -DBLIP_SEND_ROUTER_SOLICITATIONS=1
+	PFLAGS += -DBLIP_SEND_ROUTER_SOLICITATIONS=0
 	PFLAGS += -DBLIP_SEND_ROUTER_ADVERTISEMENTS=0
 endif
 
