@@ -36,7 +36,7 @@ module SERPNeighborTableP {
       //printf("Neighbor B: hop count %d power profile %d ip ", b->hop_count, b->power_profile);
       //printf_in6addr(&b->ip);
       //printf("\n");
-      res = (compare_ipv6(&a->ip, &b->ip) && (a->hop_count == b->hop_count) &&
+      res = (compare_ipv6(&a->ip, &b->ip) && //(a->hop_count == b->hop_count) &&
               (a->power_profile == b->power_profile));
       //printf("RESULT %d\n", res);
       return res;
@@ -71,6 +71,9 @@ module SERPNeighborTableP {
             entry = &neighbor_table[i];
             // test for duplicate entry
             if (entry != NULL && compare_ipv6(&neighbor.ip, &entry->ip)) {
+                // if there's a duplicate entry, keep the entry that has the
+                // smaller hop count
+                if (neighbor.hop_count < entry->hop_count) neighbor_table[i].hop_count = neighbor.hop_count;
                 return SUCCESS;
             }
         }
@@ -128,6 +131,17 @@ module SERPNeighborTableP {
             }
         }
         return FALSE;
+    }
+
+    command void SERPNeighborTable.delNeighbor(struct in6_addr *addr) {
+        int i;
+        for (i = 0; i < MAX_SERP_NEIGHBOR_COUNT; i++) {
+            if (compare_ipv6(addr, &neighbor_table[i].ip)) {
+                memmove((void *)&neighbor_table[i], (void *)&neighbor_table[i+1],
+                        sizeof(serp_neighbor_t) * (MAX_SERP_NEIGHBOR_COUNT - i - 1));
+                neighbor_table[MAX_SERP_NEIGHBOR_COUNT-1].valid = 0;
+            }
+        }
     }
 
     command serp_neighbor_t* SERPNeighborTable.getLowestHopCount() {

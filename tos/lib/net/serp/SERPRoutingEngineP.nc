@@ -21,6 +21,7 @@ module SERPRoutingEngineP {
         interface Timer<TMilli> as RouterAdvMeshAnnTimer;
         interface Timer<TMilli> as PrintTimer;
         interface Timer<TMilli> as RSTrickleTimer;
+        interface IPForward;
     }
 } implementation {
 
@@ -67,6 +68,8 @@ module SERPRoutingEngineP {
   task void send_mesh_info_RA();
   task void send_rs_task ();
   task void startMeshAdvertising();
+  bool getPreferredParent();
+  bool neighbors_are_equal(serp_neighbor_t *a, serp_neighbor_t *b);
 
   task void init() {
     if (I_AM_ROOT) {
@@ -77,6 +80,35 @@ module SERPRoutingEngineP {
         memcpy(&unicast_rs_destination, &BCAST_ADDRESS, sizeof(struct in6_addr));
         call RSTrickleTimer.startOneShot(trickle_time*1000);
     }
+  }
+
+  // returns TRUE if the preferred parent changed, false otherwise
+  bool getPreferredParent() {
+    serp_neighbor_t *chosen_parent;
+    chosen_parent = call SERPNeighborTable.getLowestHopCount();
+    if (chosen_parent == NULL) {
+        printf(ERRORC "No parent w/ lowest hop count\n" RESET);
+        return FALSE;
+    }
+
+    // only send mesh annoucement if
+    // a) we have a *new* neighbor, or
+    // b) we have a *new* lowest hop count
+    if (!neighbors_are_equal(chosen_parent, &preferred_parent)) {
+      printf(INFOC "Choosing a parent as default route: IP addr ");
+      printf_in6addr(&chosen_parent->ip);
+      printf(" w/ hop count %d and power profile %d\n" RESET, chosen_parent->hop_count, chosen_parent->power_profile);
+      // we set our hop count to be one greater than the hop count of the parent we've chosen
+      hop_count = chosen_parent->hop_count + 1;
+      call ForwardingTable.addRoute(NULL, 0, &chosen_parent->ip, ROUTE_IFACE_154);
+
+      // make a note of our preferred parent
+      preferred_parent.hop_count = chosen_parent->hop_count;
+      preferred_parent.power_profile = chosen_parent->power_profile;
+      memcpy(&preferred_parent.ip, &chosen_parent->ip, sizeof(struct in6_addr));
+      return TRUE;
+    }
+    return FALSE;
   }
 
   task void startMeshAdvertising() {
@@ -499,7 +531,7 @@ module SERPRoutingEngineP {
     // don't have one because they are sending a RS message
     if (I_AM_ROOT) {
       err = call SERPNeighborTable.addNeighbor(&hdr->ip6_src, 1, 0xFF);
-      call ForwardingTable.addRoute(hdr->ip6_src.s6_addr, 128, &hdr->ip6_src, ROUTE_IFACE_154);
+      //call ForwardingTable.addRoute(hdr->ip6_src.s6_addr, 128, &hdr->ip6_src, ROUTE_IFACE_154);
     } else {
       err = call SERPNeighborTable.addNeighbor(&hdr->ip6_src, 0xFF, 0xFF);
     }
@@ -522,33 +554,11 @@ module SERPRoutingEngineP {
         // if we are not root when this timer fires, we should run through the neighbor table
         // to make sure we announce the most up to date information
         if (!I_AM_ROOT && part_of_mesh) {
-            serp_neighbor_t *chosen_parent;
-            chosen_parent = call SERPNeighborTable.getLowestHopCount();
-            if (chosen_parent == NULL) {
-                printf(ERRORC "No parent w/ lowest hop count\n" RESET);
-                return;
-            }
-
-            // only send mesh annoucement if
-            // a) we have a *new* neighbor, or
-            // b) we have a *new* lowest hop count
-            if (!neighbors_are_equal(chosen_parent, &preferred_parent)) {
-              printf(SENDC "Sending Router ANN\n", RESET);
-
-              printf(INFOC "Choosing a parent as default route: IP addr ");
-              printf_in6addr(&chosen_parent->ip);
-              printf(" w/ hop count %d and power profile %d\n" RESET, chosen_parent->hop_count, chosen_parent->power_profile);
-              // we set our hop count to be one greater than the hop count of the parent we've chosen
-              hop_count = chosen_parent->hop_count + 1;
-              call ForwardingTable.addRoute(NULL, 0, &chosen_parent->ip, ROUTE_IFACE_154);
-
-              // make a note of our preferred parent
-              preferred_parent.hop_count = chosen_parent->hop_count;
-              preferred_parent.power_profile = chosen_parent->power_profile;
-              memcpy(&preferred_parent.ip, &chosen_parent->ip, sizeof(struct in6_addr));
-              post send_mesh_announcement_RA();
-              return;
-           }
+          if (getPreferredParent()) {
+            printf(SENDC "Parent changed: Sending Router ANN\n", RESET);
+            post send_mesh_announcement_RA();
+          }
+          return;
         } else {
           printf(SENDC "Router advertisement mesh send BCAST\n" RESET);
           //memcpy(&ra_meshinfo_destination, &BCAST_ADDRESS, sizeof(struct in6_addr));
@@ -660,4 +670,42 @@ module SERPRoutingEngineP {
 
   event void Ieee154Address.changed() {}
   event void IPAddress.changed(bool global_valid) {}
+
+  /** IP Forward **/
+  // want to detect when packets fail to send
+  // struct send_info {
+  //   void   *upper_data;           /* reference to the data field of IPLower.send */
+  //   uint8_t link_fragments;       /* how many fragments the packet was split into */
+  //   uint8_t link_transmissions;   /* how many total link transmissions were required */
+  //   uint8_t link_fragment_attempts; /* how many fragments we tried  */
+  //   bool    failed;               /* weather the link reported that the transmission succeed*/
+  //   uint8_t _refcount;
+  // };
+  // When a link fails, we know 
+  event void IPForward.sendDone(struct send_info *status) {
+    struct in6_addr next;
+    struct in6_iid *iid = (struct in6_iid *)status->upper_data;
+    printf(ERRORC "STATUS PACKET SEND %d\n" RESET, status->failed);
+
+    memset(next.s6_addr, 0, 16);
+    next.s6_addr16[0] = htons(0xfe80);
+    if (iid == NULL) return; // no address stored, so we can't do anything with it
+
+    memcpy(&next.s6_addr[8], iid->data, 8);
+    // next is the "next hop" link-local address
+    // If the destination is in our neighbor table, then we need to remove it
+    // from the neighbor table. 
+    // If the destination is *not* in the neighbor table, then we must have been sending
+    // to the default route. If this is the case, we need to remove the default route
+    // and recalculate from the neighbor table
+    if (call SERPNeighborTable.isNeighbor(&next)) {
+        call SERPNeighborTable.delNeighbor(&next);
+    }
+
+    // getPreferredParent();
+
+  }
+
+  event void IPForward.recv(struct ip6_hdr *iph, void *payload, struct ip6_metadata *meta) {
+  }
 }

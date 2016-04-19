@@ -12,7 +12,10 @@ when there is nothing more to remove
 ## Implementation Plan
 
 * [ ] need a trigger when a packet fails to send -- need to rebuilt routing
-* [ ] need to build up alternative routing tables when we hear neighbors in another message
+* [ ] need to build up alternative routes when we hear neighbors in another message
+* [ ] need to compress the neighbors in the reported messages
+* [x] need to increase size of routing table -- necessary?
+* [x] remove LL addresses from routing table?
 
 ## Trickle Timer
 

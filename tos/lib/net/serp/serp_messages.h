@@ -9,7 +9,7 @@
 
 /*** constants for SERP ***/
 #define MAX_SERP_NEIGHBOR_COUNT 10
-#define MAX_SERP_NEIGHBOR_MSG 8
+#define MAX_SERP_NEIGHBOR_MSG 10
 #define IPV6_ADDR_ALL_ROUTERS "ff02::2"
 #define WAIT_BEFORE_SEND_ANNOUNCEMENT 5000 //  5 seconds
 

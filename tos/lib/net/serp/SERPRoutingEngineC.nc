@@ -18,6 +18,7 @@ implementation {
     components new TimerMilliC() as PrintTimer;
     components new TimerMilliC() as RouterAdvMeshAnnTimer;
     components IPAddressC, Ieee154AddressC;
+    components IPNeighborDiscoveryC;
 
    // components new ICMPCodeDispatchC(ICMP_TYPE_SERP_CONTROL) as ICMP_RS;
     components new ICMPCodeDispatchC(ICMP_TYPE_ROUTER_SOL) as ICMP_RS;
@@ -41,5 +42,6 @@ implementation {
     Routing.ForwardingTable -> IPStackC;
     Routing.RouterAdvMeshAnnTimer -> RouterAdvMeshAnnTimer;
     Routing.PrintTimer -> PrintTimer;
+    Routing.IPForward -> IPNeighborDiscoveryC.IPForward;
     SERPControl = Routing;
 }

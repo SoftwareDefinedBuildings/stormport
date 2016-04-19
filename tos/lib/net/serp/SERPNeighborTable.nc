@@ -13,6 +13,8 @@ interface SERPNeighborTable {
 
   command void printNeighbor(int index);
 
+  command void delNeighbor(struct in6_addr *addr);
+
   command serp_neighbor_t* getLowestHopCount();
 
   command serp_neighbor_t* getLowestHopCountWithPower();
