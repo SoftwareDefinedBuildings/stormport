@@ -8,7 +8,7 @@ enum {
 };
 
 #ifndef ROUTE_TABLE_SZ 
-#define ROUTE_TABLE_SZ 20
+#define ROUTE_TABLE_SZ 30
 #endif
 
 enum {
