@@ -14,7 +14,6 @@ implementation {
     components MainC;
     components RandomC;
     components IPStackC;
-    components new TimerMilliC() as TrickleTimer;
     components new TimerMilliC() as PrintTimer;
     components new TimerMilliC() as RouterAdvMeshAnnTimer;
     components IPAddressC, Ieee154AddressC;
@@ -24,14 +23,18 @@ implementation {
     components new ICMPCodeDispatchC(ICMP_TYPE_ROUTER_SOL) as ICMP_RS;
     components new ICMPCodeDispatchC(ICMP_TYPE_ROUTER_ADV) as ICMP_RA;
 
-    components new TrickleTimerMilliC(1, 1024, 1, 1);
+
+    // @param l Lower bound of the time period in seconds.
+    // @param h Upper bound of the time period in seconds.
+    // @param k Redundancy constant.
+    // @param count How many timers to provide.
+    components new TrickleTimerMilliC(2, 1024, 1, 2);
 
     components SERPNeighborTableP;
     SERPNeighborTableP.Init <- MainC.SoftwareInit;
 
     components SERPRoutingEngineP as Routing;
     Routing.RootControl = RootControl;
-    Routing.RSTrickleTimer -> TrickleTimer;
     Routing.Random -> RandomC;
     Routing.IP_RA -> ICMP_RA.IP[ICMPV6_CODE_RA];
     Routing.IP_RS -> ICMP_RS.IP[ICMPV6_CODE_RS];
@@ -43,5 +46,6 @@ implementation {
     Routing.RouterAdvMeshAnnTimer -> RouterAdvMeshAnnTimer;
     Routing.PrintTimer -> PrintTimer;
     Routing.IPForward -> IPNeighborDiscoveryC.IPForward;
+    Routing.MeshInfoTrickleTimer -> TrickleTimerMilliC;
     SERPControl = Routing;
 }

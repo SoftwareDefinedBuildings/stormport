@@ -41,12 +41,14 @@ struct nd_option_serp_mesh_info_t {
     uint8_t prefix_length;
     // the power profile of this mote
     serp_power_type powered;
+
     // the hop count from a border router of the sender
     uint8_t sender_hop_count;
     uint8_t neighbor_count;
-    // should be 0
-    uint16_t reserved1;
+    // this 
+    uint16_t reserved0;
     uint16_t neighbors[8];
+
     // the prefix of the mesh
     struct in6_addr prefix;
 };
