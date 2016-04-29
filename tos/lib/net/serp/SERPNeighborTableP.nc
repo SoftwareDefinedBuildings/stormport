@@ -119,11 +119,6 @@ module SERPNeighborTableP {
 
         for (i=0; i < MAX_SERP_NEIGHBOR_COUNT; i++) {
             entry = &neighbor_table[i];
-            //printf("COMPARE adding ");
-            //printf_in6addr(addr);
-            //printf(" test ");
-            //printf_in6addr(&entry->ip);
-            //printf("\n");
             if (compare_ipv6(addr, &entry->ip) ||
                 (memcmp(&addr->s6_addr, &entry->ip.s6_addr, 16) == 0) ||
                 (memcmp(&addr->s6_addr32[3], &entry->ip.s6_addr32[3], sizeof(uint32_t)) == 0)) {
@@ -133,8 +128,24 @@ module SERPNeighborTableP {
         return FALSE;
     }
 
+    command bool SERPNeighborTable.isNeighborNodeID(uint16_t nodeid) {
+        int i;
+        serp_neighbor_t *entry;
+
+        for (i=0; i < MAX_SERP_NEIGHBOR_COUNT; i++) {
+            entry = &neighbor_table[i];
+            if (entry->ip.s6_addr16[7] == nodeid) {
+                return TRUE;
+            }
+        }
+        return FALSE;
+    }
+
     command void SERPNeighborTable.delNeighbor(struct in6_addr *addr) {
         int i;
+        printf(ERRORC "Removing a neighbor! ");
+        printf_in6addr(addr);
+        printf("\n" RESET);
         for (i = 0; i < MAX_SERP_NEIGHBOR_COUNT; i++) {
             if (compare_ipv6(addr, &neighbor_table[i].ip)) {
                 memmove((void *)&neighbor_table[i], (void *)&neighbor_table[i+1],

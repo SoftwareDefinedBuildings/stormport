@@ -11,6 +11,8 @@ interface SERPNeighborTable {
 
   command bool isNeighbor(struct in6_addr *addr);
 
+  command bool isNeighborNodeID(uint16_t nodeid);
+
   command void printNeighbor(int index);
 
   command void delNeighbor(struct in6_addr *addr);
