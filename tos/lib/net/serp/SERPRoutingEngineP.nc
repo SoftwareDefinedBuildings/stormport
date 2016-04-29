@@ -8,6 +8,7 @@ module SERPRoutingEngineP {
     provides {
         interface StdControl as SERPControl;
         interface RootControl;
+        interface BlipStatistics<serp_route_statistics_t> as RouteStatistics;
     }
     uses {
         interface IP as IP_RA;
@@ -29,6 +30,8 @@ module SERPRoutingEngineP {
   cur += (LEN); length += (LEN);
 #define compare_ipv6(node1, node2) \
   (!memcmp((node1), (node2), sizeof(struct in6_addr)))
+
+    serp_route_statistics_t route_stats;
 
     // SERP Routing values
 
@@ -190,9 +193,7 @@ module SERPRoutingEngineP {
         err = call SERPNeighborTable.addNeighbor(&hdr->ip6_src, hop_count+1, 0xFF);
       }
 
-      if (err != SUCCESS) {
-          printf(ERRORC "2Error adding to serp neighbor table\n" RESET);
-      }
+      route_stats.mi_recv += 1; // STATS
 
       // Iterate through all of the SERP-specific options
       while (TRUE) {
@@ -429,6 +430,8 @@ module SERPRoutingEngineP {
       // reset this when we send
       outstanding_RS_messages = 0;
 
+      route_stats.mi_sent += 1; // STATS
+
       // set the src address to our link layer address
       call IPAddress.getLLAddr(&pkt.ip6_hdr.ip6_src);
       call IP_RA.send(&pkt);
@@ -543,6 +546,8 @@ module SERPRoutingEngineP {
 
         // increment the number of outstanding RS messages we have to respond to
         outstanding_RS_messages++;
+
+        route_stats.rs_recv += 1; // STATS
 
         // add to the neighbor table. If we are the root, this means we have a 1 hop distnace
         // to them. IF we are not root, then we don't know what their hop count is because they
@@ -681,6 +686,7 @@ module SERPRoutingEngineP {
       printf(SENDC "Sending router solicitation to ");
       printf_in6addr(&unicast_rs_destination);
       printf("\n" RESET);
+      route_stats.rs_sent += 1; // STATS
       memcpy(&pkt.ip6_hdr.ip6_dst, &unicast_rs_destination, 16);
       call IPAddress.getLLAddr(&pkt.ip6_hdr.ip6_src);
       call IP_RS.send(&pkt);
@@ -725,5 +731,15 @@ module SERPRoutingEngineP {
     }
 
     event void IPForward.recv(struct ip6_hdr *iph, void *payload, struct ip6_metadata *meta) {
+    }
+
+    /* RouteStatistics interface */
+    command void RouteStatistics.get(serp_route_statistics_t *stats) {
+        memcpy(stats, &route_stats, sizeof(serp_route_statistics_t));
+        printf(CYAN "SENDING STATS %d %d %d %d\n" RESET, stats->mi_sent, stats->mi_recv, stats->rs_sent, stats->rs_recv);
+    }
+
+    command void RouteStatistics.clear() {
+        memclr((uint8_t *)&route_stats, sizeof(serp_route_statistics_t));
     }
   }

@@ -4,6 +4,7 @@ configuration SERPRoutingEngineC {
     provides {
         interface RootControl;
         interface StdControl as SERPControl;
+        interface BlipStatistics<serp_route_statistics_t> as RouteStatistics;
         //interface SERPRoutingEngine;
     } uses {
         interface NeighborDiscovery;
@@ -47,5 +48,6 @@ implementation {
     Routing.PrintTimer -> PrintTimer;
     Routing.IPForward -> IPNeighborDiscoveryC.IPForward;
     Routing.MeshInfoTrickleTimer -> TrickleTimerMilliC;
+    RouteStatistics = Routing;
     SERPControl = Routing;
 }

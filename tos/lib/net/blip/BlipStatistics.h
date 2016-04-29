@@ -91,4 +91,13 @@ typedef nx_struct {
   nx_uint16_t tx_cnt;
 } retry_statistics_t;
 
+typedef nx_struct {
+  nx_uint8_t mi_sent; // number of mesh info messages sent
+  nx_uint8_t mi_recv; // number of mesh info messages received
+  nx_uint8_t rs_sent; // number of router soliciation messages sent
+  nx_uint8_t rs_recv; // number of router soliciation messages received
+  nx_uint8_t num_neighbors; // number of neighbors in neighbor table
+  nx_uint8_t num_routes; // number of GLOBAL routes in routing table
+} serp_route_statistics_t;
+
 #endif

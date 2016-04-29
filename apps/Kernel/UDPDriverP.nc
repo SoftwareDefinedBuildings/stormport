@@ -7,6 +7,7 @@ module UDPDriverP
     uses interface BlipStatistics<ip_statistics_t> as ip_stats;
     uses interface BlipStatistics<udp_statistics_t> as udp_stats;
     uses interface BlipStatistics<retry_statistics_t> as retry_stats;
+    uses interface BlipStatistics<serp_route_statistics_t> as route_stats;
 }
 implementation
 {
@@ -49,6 +50,15 @@ implementation
         uint16_t pkt_cnt;
         uint16_t tx_cnt;
     } __attribute__((packed)) rstats;
+
+    struct {
+      uint8_t mi_sent; // number of mesh info messages sent
+      uint8_t mi_recv; // number of mesh info messages received
+      uint8_t rs_sent; // number of router soliciation messages sent
+      uint8_t rs_recv; // number of router soliciation messages received
+      uint8_t num_neighbors; // number of neighbors in neighbor table
+      uint8_t num_routes; // number of GLOBAL routes in routing table
+    } __attribute__((packed)) routestats;
 
     uint8_t scanidx;
 
@@ -213,6 +223,24 @@ implementation
             case 0x09: // udp_clear_retrystats()
             {
                 call retry_stats.clear();
+                return 0;
+            }
+
+            case 0x0a: //udp_get_routestats()
+            {
+                serp_route_statistics_t r;
+                call route_stats.get(&r);
+                routestats.mi_sent = r.mi_sent;
+                routestats.mi_recv = r.mi_recv;
+                routestats.rs_sent = r.rs_sent;
+                routestats.rs_recv = r.rs_recv;
+                routestats.num_neighbors = r.num_neighbors;
+                routestats.num_routes = r.num_routes;
+                return &routestats;
+            }
+            case 0x0b: // udp_clear_routestats()
+            {
+                call route_stats.clear();
                 return 0;
             }
 #endif // BLIP_STATS
