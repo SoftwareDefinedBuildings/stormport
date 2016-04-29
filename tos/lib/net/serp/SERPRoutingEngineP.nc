@@ -190,7 +190,10 @@ module SERPRoutingEngineP {
       call ForwardingTable.addRoute(hdr->ip6_src.s6_addr, 128, &hdr->ip6_src, ROUTE_IFACE_154);
       // add the sender to the neighbor table
       if (part_of_mesh) {
-        err = call SERPNeighborTable.addNeighbor(&hdr->ip6_src, hop_count+1, 0xFF);
+          err = call SERPNeighborTable.addNeighbor(&hdr->ip6_src, hop_count+1, 0xFF);
+          if (err != SUCCESS) {
+              printf(ERRORC "2Error adding to serp neighbor table\n" RESET);
+          }
       }
 
       route_stats.mi_recv += 1; // STATS
@@ -210,76 +213,94 @@ module SERPRoutingEngineP {
               serp_neighbor_t nn;
               struct route_entry* entry;
               struct in6_addr our_address;
+              struct in6_addr neighbor;
               error_t err;
+              bool we_are_in_neighbor_list = FALSE;
               int i;
-
-              // do not process if we are root
-              if (I_AM_ROOT) break;
 
               meshinfo = (struct nd_option_serp_mesh_info_t*) cur;
               printf(RECVC "Received a SERP Mesh Info message with pfx len: %d, power: %d, hop_count: %d and prefix ", meshinfo->prefix_length, meshinfo->powered, meshinfo->sender_hop_count);
               printf_in6addr(&meshinfo->prefix);
               printf("\n" RESET);
 
-              if (meshinfo->prefix_length > 0) {
-                // if we weren't previously part of the mesh, we trigger the timer to be restarted
-                if (!part_of_mesh) {
-                  // rapid start the trickle timer
-                  do_meshinfo_reset = TRUE;
-                  printf(ERRORC "RESETTING MESH INFO we joined the mesh!\n" RESET);
-                }
-                part_of_mesh = TRUE;
-                call NeighborDiscovery.setPrefix(&meshinfo->prefix, meshinfo->prefix_length, IP6_INFINITE_LIFETIME, IP6_INFINITE_LIFETIME);
-                printf(INFOC "Setting prefix from meshinfo msg to ");
-                printf_in6addr(&meshinfo->prefix);
-                printf("\n" RESET);
-              }
+              if (!I_AM_ROOT) {
+                  if (meshinfo->prefix_length > 0) {
+                    // if we weren't previously part of the mesh, we trigger the timer to be restarted
+                    if (!part_of_mesh) {
+                      // rapid start the trickle timer
+                      do_meshinfo_reset = TRUE;
+                      printf(ERRORC "RESETTING MESH INFO we joined the mesh!\n" RESET);
+                    }
+                    part_of_mesh = TRUE;
+                    call NeighborDiscovery.setPrefix(&meshinfo->prefix, meshinfo->prefix_length, IP6_INFINITE_LIFETIME, IP6_INFINITE_LIFETIME);
+                    printf(INFOC "Setting prefix from meshinfo msg to ");
+                    printf_in6addr(&meshinfo->prefix);
+                    printf("\n" RESET);
+                  }
 
-              // populate a neighbor table entry
-              err = call SERPNeighborTable.addNeighbor(&hdr->ip6_src, meshinfo->sender_hop_count,meshinfo->powered);
-              if (err != SUCCESS) {
-                  printf(ERRORC "3Error adding to serp neighbor table\n" RESET);
-                  break;
+                  // populate a neighbor table entry
+                  err = call SERPNeighborTable.addNeighbor(&hdr->ip6_src, meshinfo->sender_hop_count,meshinfo->powered);
+                  if (err != SUCCESS) {
+                      printf(ERRORC "3Error adding to serp neighbor table\n" RESET);
+                      break;
+                  }
               }
 
               // test if we are in the list of neighbors in the msh info message. If we are NOT,
               // then we need to respond!
               call IPAddress.getLLAddr(&our_address);
+              call IPAddress.getGlobalAddr(&neighbor);
+              // we iterate through the neighbors contained in the message. We mark if we are in the neighbor list,
+              // but for all other neighbors, if it is NOT in our neighbor table, then we add a route via the sender
+              // of the RA mesh info message
               for (i=0;i<meshinfo->neighbor_count;i++) {
                   //printf(INFOC "Mesh info contains node %x\n" RESET, htons(meshinfo->neighbors[i]));
                   if (our_address.s6_addr16[7] == meshinfo->neighbors[i]) {
-                      break;
+                      we_are_in_neighbor_list = TRUE;
+                      continue;
                   }
-              }
-              if (meshinfo->neighbor_count == 0 || i == meshinfo->neighbor_count) { // we were not in the list
-                  printf(ERRORC "%x Was not in neighbor list \n" RESET, htons(our_address.s6_addr16[7]));
-                  // save the unicast destination
-                  //memcpy(&unicast_rs_destination, &hdr->ip6_src, sizeof(struct in6_addr));
-                  call MeshInfoTrickleTimer.reset[rs_key]();
-                  call MeshInfoTrickleTimer.start[rs_key]();
-              } else {
-                  // if msg was from our preferred parent, then we cancel any RA annoucemenet
-                  if ((hdr->ip6_src.s6_addr32[2] == preferred_parent.ip.s6_addr32[2]) &&
-                      (hdr->ip6_src.s6_addr32[3] == preferred_parent.ip.s6_addr32[3])) {
-
-                    printf(INFOC "Parent has us, so we good\n", RESET);
-                    //call RouterAdvMeshAnnTimer.stop();
-                    call MeshInfoTrickleTimer.stop[rs_key]();
-                    call MeshInfoTrickleTimer.incrementCounter[meshinfo_key]();
+                  printf(MAGENTA "check if %d is a neighbor\n" RESET, meshinfo->neighbors[i]);
+                  if (!call SERPNeighborTable.isNeighborNodeID(meshinfo->neighbors[i])) {
+                      memcpy(&neighbor.s6_addr16[7], &meshinfo->neighbors[i], 2);
+                      printf(MAGENTA "it not a neighbor! Adding address ");
+                      printf_in6addr(&neighbor);
+                      printf("\n" RESET);
+                      call ForwardingTable.addRoute(neighbor.s6_addr, 128, &hdr->ip6_src, ROUTE_IFACE_154);
                   }
               }
 
-              // if our prefererd parent has changed as a result of receiving this message,
-              // then we reset our trickle timer for mesh info
-              if (part_of_mesh && getPreferredParent()) {
-                do_meshinfo_reset = TRUE;
-              }
+              if (!I_AM_ROOT) {
+                  if (meshinfo->neighbor_count == 0 || !we_are_in_neighbor_list) { // we were not in the list
+                      printf(ERRORC "%x Was not in neighbor list \n" RESET, htons(our_address.s6_addr16[7]));
+                      // save the unicast destination
+                      //memcpy(&unicast_rs_destination, &hdr->ip6_src, sizeof(struct in6_addr));
+                      call MeshInfoTrickleTimer.reset[rs_key]();
+                      call MeshInfoTrickleTimer.start[rs_key]();
+                  } else {
+                      // if msg was from our preferred parent, then we cancel any RA annoucemenet
+                      if ((hdr->ip6_src.s6_addr32[2] == preferred_parent.ip.s6_addr32[2]) &&
+                          (hdr->ip6_src.s6_addr32[3] == preferred_parent.ip.s6_addr32[3])) {
 
-              if (do_meshinfo_reset) {
-                printf(INFOC "Mesh Info changed us" RESET);
-                //call MeshInfoTrickleTimer.reset[meshinfo_key]();
-                //call MeshInfoTrickleTimer.stop[meshinfo_key]();
-                //call MeshInfoTrickleTimer.start[meshinfo_key]();
+                        printf(INFOC "Parent has us, so we good\n", RESET);
+                        //call RouterAdvMeshAnnTimer.stop();
+                        call MeshInfoTrickleTimer.stop[rs_key]();
+                      }
+                  }
+
+                  // if our prefererd parent has changed as a result of receiving this message,
+                  // then we reset our trickle timer for mesh info
+                  if (part_of_mesh && getPreferredParent()) {
+                    do_meshinfo_reset = TRUE;
+                  }
+
+                  if (do_meshinfo_reset) {
+                    printf(INFOC "Mesh Info changed us" RESET);
+                    //call MeshInfoTrickleTimer.stop[meshinfo_key]();
+                    call MeshInfoTrickleTimer.reset[meshinfo_key]();
+                    call MeshInfoTrickleTimer.start[meshinfo_key]();
+                  } else {
+                    //call MeshInfoTrickleTimer.incrementCounter[meshinfo_key]();
+                  }
               }
 
               break;
@@ -304,7 +325,7 @@ module SERPRoutingEngineP {
               printf("with %d neighbors and default route " , announcement->neighbor_count);
               printf_in6addr(&announcement->parent);
               printf("\n" RESET);
-              err = call SERPNeighborTable.addNeighbor(&hdr->ip6_src, hop_count+1, 0xFF);
+              err = call SERPNeighborTable.addNeighbor(&hdr->ip6_src, announcement->hop_count, 0xFF);
               printf(INFOC "Add route to ");
               printf_in6addr(&hdr->ip6_src);
               printf(" via ");
@@ -389,6 +410,7 @@ module SERPRoutingEngineP {
           memset(&option, 0, sizeof(struct nd_option_serp_mesh_info_t));
           option.type = ND6_SERP_MESH_INFO;
           option.option_length = 5;
+          option.reserved0 = 0;
           // add prefix length
           option.prefix_length = call NeighborDiscovery.getPrefixLength();
           // add prefix
@@ -462,7 +484,6 @@ module SERPRoutingEngineP {
       ADD_SECTION(&ra, sizeof(struct nd_router_advertisement_t));
 
       // add announcement option
-      // TODO: only send if hop_count < 0xff?
       {
           int i;
           int n_idx = 0;
@@ -711,6 +732,9 @@ module SERPRoutingEngineP {
       struct in6_iid *iid = (struct in6_iid *)status->upper_data;
       printf(ERRORC "STATUS PACKET SEND %d\n" RESET, status->failed);
 
+      if (!status->failed) return; // if delivery was successful, then we return early
+
+      // ASSUMPTION here is that the link is broken
       memset(next.s6_addr, 0, 16);
       next.s6_addr16[0] = htons(0xfe80);
       if (iid == NULL) return; // no address stored, so we can't do anything with it
@@ -726,7 +750,10 @@ module SERPRoutingEngineP {
           call SERPNeighborTable.delNeighbor(&next);
       }
 
-      // getPreferredParent();
+      // if we are not root, check if our preferred parent has changed
+      if (!I_AM_ROOT) {
+        getPreferredParent();
+      }
 
     }
 

@@ -8,8 +8,8 @@
 #include <icmp6.h>
 
 /*** constants for SERP ***/
-#define MAX_SERP_NEIGHBOR_COUNT 10
-#define MAX_SERP_NEIGHBOR_MSG 10
+#define MAX_SERP_NEIGHBOR_COUNT 20
+#define MAX_SERP_NEIGHBOR_MSG 8
 #define IPV6_ADDR_ALL_ROUTERS "ff02::2"
 #define WAIT_BEFORE_SEND_ANNOUNCEMENT 5000 //  5 seconds
 
@@ -35,22 +35,27 @@ typedef struct {
 struct nd_option_serp_mesh_info_t {
     // ND6_SERP_MESH_INFO
     uint8_t type;
-    // option length is 3 (3 << 3 bytes)
+    // option length is 2
     uint8_t option_length;
     // length in bits of the prefix
     uint8_t prefix_length;
     // the power profile of this mote
     serp_power_type powered;
+    // 4 bytes
 
     // the hop count from a border router of the sender
     uint8_t sender_hop_count;
     uint8_t neighbor_count;
     // this 
     uint16_t reserved0;
+    // 4 bytes
+
     uint16_t neighbors[8];
+    // 4 bytes
 
     // the prefix of the mesh
     struct in6_addr prefix;
+    // 4 bytes
 };
 
 // Router Advertisement - Mesh Announcement
@@ -66,13 +71,18 @@ struct nd_option_serp_mesh_announcement_t {
     uint8_t hop_count;
     // number of neighbors included
     uint8_t neighbor_count;
+    // 4 bytes
+
     // list of reachable neighbors
     // TODO: right now this uses unique 2-byte identifiers for
     // nodes. We'll want to do prefix encoding for compression of
     // the ful 64-bit lower addresses
     uint16_t neighbors[8];
+    // 4 bytes
+
     // the preferred parent/default route chosen
     struct in6_addr parent;
+    // 4 bytes
 };
 
 /*** debugging ***/
