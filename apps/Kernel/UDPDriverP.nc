@@ -7,6 +7,7 @@ module UDPDriverP
     uses interface BlipStatistics<ip_statistics_t> as ip_stats;
     uses interface BlipStatistics<udp_statistics_t> as udp_stats;
     uses interface BlipStatistics<retry_statistics_t> as retry_stats;
+    uses interface BlipStatistics<rpl_statistics_t> as rpl_stats;
 }
 implementation
 {
@@ -49,6 +50,13 @@ implementation
         uint16_t pkt_cnt;
         uint16_t tx_cnt;
     } __attribute__((packed)) rstats;
+
+    struct {
+      uint8_t dis_tx;
+      uint8_t dio_tx;
+      uint8_t dao_tx;
+      uint16_t rank;
+    } __attribute__((packed)) rplstats;
 
     uint8_t scanidx;
 
@@ -213,6 +221,21 @@ implementation
             case 0x09: // udp_clear_retrystats()
             {
                 call retry_stats.clear();
+                return 0;
+            }
+            case 0x0c: // udp_get_rplstats() -- start at c because a,b is blip
+            {
+                rpl_statistics_t r;
+                call rpl_stats.get(&r);
+                rplstats.dis_tx = r.dis_tx;
+                rplstats.dio_tx = r.dio_tx;
+                rplstats.dao_tx = r.dao_tx;
+                rplstats.rank = r.rank;
+                return &rplstats;
+            }
+            case 0x0d:
+            {
+                call rpl_stats.clear();
                 return 0;
             }
 #endif // BLIP_STATS

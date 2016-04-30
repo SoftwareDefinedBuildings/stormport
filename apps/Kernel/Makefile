@@ -32,7 +32,7 @@ endif
 
 # radio options
 # CFLAGS += -DCC2420_DEF_CHANNEL=26
-CFLAGS += -DRF230_DEF_CHANNEL=22
+CFLAGS += -DRF230_DEF_CHANNEL=26
 # CFLAGS += -DCC2420_DEF_RFPOWER=4 -DENABLE_SPI0_DMA
 
 # enable dma on the radio
@@ -73,8 +73,8 @@ PFLAGS += -DLIB6LOWPAN_FULL=1
 PFLAGS += -DLIB6LOWPAN_HC_VERSION=6
 
 # Keep statistics about various BLIP/IPv6 parameters. See BlipStatistics.h
-#PFLAGS += -DBLIP_STATS
-#PFLAGS += -DBLIP_STATS_IP_MEM
+PFLAGS += -DBLIP_STATS
+PFLAGS += -DBLIP_STATS_IP_MEM
 
 ################################################################################
 ### Configure RPL

@@ -42,6 +42,7 @@
 generic module RPLDAORoutingEngineP() {
   provides {
     interface RPLDAORoutingEngine as RPLDAORouteInfo;
+    interface BlipStatistics<rpl_statistics_t> as DAOStatistics;
     interface StdControl;
   }
   uses {
@@ -61,6 +62,8 @@ generic module RPLDAORoutingEngineP() {
 } implementation {
 
 #define INIT_DAO 300000 // Hyung-Sin modification // 10000
+
+  rpl_statistics_t dao_stats;
 
   uint8_t dao_double_count = 0;
   uint8_t dao_double_limit = 6;
@@ -139,7 +142,7 @@ generic module RPLDAORoutingEngineP() {
       /* and unicast to the DODAG root */
       call RPLRouteInfo.getDodagId(&dao_msg->s_pkt.ip6_hdr.ip6_dst);
 #endif
-
+      dao_stats.dao_tx += 1;
       call IP_DAO.send(&dao_msg->s_pkt);
       call SendPool.put(dao_msg);
 
@@ -460,4 +463,12 @@ generic module RPLDAORoutingEngineP() {
   }
 
   event void IPAddress.changed(bool global_valid) {}
+
+  command void DAOStatistics.get(rpl_statistics_t *statistics) {
+    statistics->dao_tx = dao_stats.dao_tx;
+  }
+
+  command void DAOStatistics.clear() {
+    dao_stats.dao_tx = 0;
+  }
 }

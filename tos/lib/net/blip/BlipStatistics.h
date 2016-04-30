@@ -91,4 +91,11 @@ typedef nx_struct {
   nx_uint16_t tx_cnt;
 } retry_statistics_t;
 
+typedef nx_struct {
+  nx_uint8_t dis_tx;
+  nx_uint8_t dio_tx;
+  nx_uint8_t dao_tx;
+  nx_uint16_t rank;
+} rpl_statistics_t;
+
 #endif

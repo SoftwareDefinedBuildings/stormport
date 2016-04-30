@@ -47,6 +47,7 @@ generic module RPLRoutingEngineP() {
     interface RootControl;
     interface StdControl;
     interface RPLRoutingEngine as RPLRouteInfo;
+    interface BlipStatistics<rpl_statistics_t> as RPLStatistics;
   }
   uses {
     interface IP as IP_DIO;     /* filtered DIO messages from the rank engine */
@@ -62,6 +63,8 @@ generic module RPLRoutingEngineP() {
     interface RPLDAORoutingEngine;
     interface RPLOF;
     interface NeighborDiscovery;
+
+    interface BlipStatistics<rpl_statistics_t> as DAOStatistics;
   }
 }
 
@@ -69,6 +72,8 @@ implementation{
 
 #define ADD_SECTION(SRC, LEN) ip_memcpy(cur, (uint8_t *)(SRC), LEN);\
   cur += (LEN); length += (LEN);
+
+  rpl_statistics_t rpl_stats;
 
   /* Declare Global Variables */
   uint32_t tricklePeriod;
@@ -268,6 +273,7 @@ implementation{
     }
 
     call IPAddress.getLLAddr(&pkt.ip6_hdr.ip6_src);
+    rpl_stats.dio_tx += 1;
 
     call IP_DIO.send(&pkt);
   }
@@ -298,6 +304,7 @@ implementation{
     memcpy(&pkt.ip6_hdr.ip6_dst, &MULTICAST_ADDR, 16);
     call IPAddress.getLLAddr(&pkt.ip6_hdr.ip6_src);
 
+    rpl_stats.dis_tx += 1;
     call IP_DIS.send(&pkt);
   }
 
@@ -638,5 +645,16 @@ implementation{
   }
 
   event void IPAddress.changed(bool global_valid) {}
+
+  command void RPLStatistics.get(rpl_statistics_t *statistics) {
+    memcpy(statistics, &rpl_stats, sizeof(rpl_statistics_t));
+    statistics->rank = call RPLRankInfo.getEtx();
+    call DAOStatistics.get(statistics);
+  }
+
+  command void RPLStatistics.clear() {
+    memclr((uint8_t *)&rpl_stats, sizeof(rpl_statistics_t));
+    call DAOStatistics.clear();
+  }
 
 }

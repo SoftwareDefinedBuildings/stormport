@@ -43,6 +43,7 @@ configuration RPLDAORoutingEngineC{
   provides {
     interface StdControl;
     interface RPLDAORoutingEngine;
+    interface BlipStatistics<rpl_statistics_t> as DAOStatistics;
   }
   uses {
     interface IP as ICMP_RA[uint8_t code];
@@ -61,6 +62,7 @@ configuration RPLDAORoutingEngineC{
   StdControl = DAORouting;
   RPLDAORoutingEngine = DAORouting;
   DAORouting.IP_DAO = ICMP_RA[ICMPV6_CODE_DAO];
+  DAOStatistics = DAORouting;
 
   DAORouting.DelayDAOTimer -> DelayDAOTimer;
   DAORouting.GenerateDAOTimer -> GenerateDAOTimer;

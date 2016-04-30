@@ -43,6 +43,7 @@ configuration RPLRoutingEngineC {
     interface RootControl;
     interface StdControl;
     interface RPLRoutingEngine;
+    interface BlipStatistics<rpl_statistics_t> as RPLStatistics;
   }
 }
 
@@ -72,7 +73,10 @@ implementation{
   Routing.IPAddress -> IPAddressC;
   Routing.RankControl -> RankC;
   Routing.RPLDAORoutingEngine -> RPLDAORoutingEngineC;
+  Routing.DAOStatistics -> RPLDAORoutingEngineC;
   Routing.IncreaseVersionTimer -> VersionTimer;
   Routing.RPLOF -> RPLOFC.RPLOF;
   Routing.NeighborDiscovery -> IPNeighborDiscoveryC.NeighborDiscovery;
+
+  RPLStatistics = Routing;
 }
