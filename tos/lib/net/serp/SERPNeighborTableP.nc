@@ -55,6 +55,7 @@ module SERPNeighborTableP {
 
         printf(INFOC "Adding SERP neighbor table with IP ");
         printf_in6addr(addr);
+        printf(" hop count %d ", hop_count);
         printf("\n" RESET);
 
         memcpy(&neighbor.ip, addr, sizeof(struct in6_addr));

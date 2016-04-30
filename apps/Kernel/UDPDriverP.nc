@@ -56,8 +56,7 @@ implementation
       uint8_t mi_recv; // number of mesh info messages received
       uint8_t rs_sent; // number of router soliciation messages sent
       uint8_t rs_recv; // number of router soliciation messages received
-      uint8_t num_neighbors; // number of neighbors in neighbor table
-      uint8_t num_routes; // number of GLOBAL routes in routing table
+      uint8_t hop_count; // hop count from root
     } __attribute__((packed)) routestats;
 
     uint8_t scanidx;
@@ -234,8 +233,7 @@ implementation
                 routestats.mi_recv = r.mi_recv;
                 routestats.rs_sent = r.rs_sent;
                 routestats.rs_recv = r.rs_recv;
-                routestats.num_neighbors = r.num_neighbors;
-                routestats.num_routes = r.num_routes;
+                routestats.hop_count = r.hop_count;
                 return &routestats;
             }
             case 0x0b: // udp_clear_routestats()

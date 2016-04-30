@@ -103,6 +103,7 @@ module SERPRoutingEngineP {
         printf(" w/ hop count %d and power profile %d\n" RESET, chosen_parent->hop_count, chosen_parent->power_profile);
         // we set our hop count to be one greater than the hop count of the parent we've chosen
         hop_count = chosen_parent->hop_count + 1;
+        route_stats.hop_count = hop_count;
         call ForwardingTable.addRoute(NULL, 0, &chosen_parent->ip, ROUTE_IFACE_154);
 
         // make a note of our preferred parent
@@ -632,6 +633,7 @@ module SERPRoutingEngineP {
       I_AM_ROOT = TRUE;
       part_of_mesh = TRUE;
       hop_count = 0;
+      route_stats.hop_count = hop_count;
       //call RPLRankInfo.declareRoot();
       return SUCCESS;
     }
@@ -762,11 +764,13 @@ module SERPRoutingEngineP {
 
     /* RouteStatistics interface */
     command void RouteStatistics.get(serp_route_statistics_t *stats) {
+        route_stats.hop_count = hop_count;
         memcpy(stats, &route_stats, sizeof(serp_route_statistics_t));
         printf(CYAN "SENDING STATS %d %d %d %d\n" RESET, stats->mi_sent, stats->mi_recv, stats->rs_sent, stats->rs_recv);
     }
 
     command void RouteStatistics.clear() {
         memclr((uint8_t *)&route_stats, sizeof(serp_route_statistics_t));
+        route_stats.hop_count = hop_count;
     }
   }
