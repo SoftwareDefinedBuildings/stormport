@@ -187,6 +187,24 @@ implementation
                 }
                 return 0;
             }
+            case 0x06: // set_attribute(attr num, key_buf, val_buf, val_len)
+            {
+                uint8_t idx;
+                uint8_t *key;
+                char *val;
+                error_t e;
+
+                // attribute number
+                idx = (uint8_t) arg0;
+                key = (uint8_t*) arg1;
+                val = (char*) arg2;
+                e = call FlashAttr.setAttr(idx, key, val, (uint8_t)(argx[0] & 0xff));
+                if (e != SUCCESS)
+                {
+                    return 1;
+                }
+                return 0;
+            }
 
             break;
         }
