@@ -59,6 +59,13 @@ implementation
       uint8_t hop_count; // hop count from root
     } __attribute__((packed)) routestats;
 
+    struct {
+      uint8_t dis_tx;
+      uint8_t dio_tx;
+      uint8_t dao_tx;
+      uint16_t rank;
+    } __attribute__((packed)) rplstats;
+
     uint8_t scanidx;
 
     socket_t  norace sockets [NUM_SOCKETS];
@@ -239,6 +246,23 @@ implementation
             case 0x0b: // udp_clear_routestats()
             {
                 call route_stats.clear();
+                return 0;
+            }
+            case 0x0c: // udp_get_rplstats() -- start at c because a,b is blip
+            {
+                //rpl_statistics_t r;
+                //call rpl_stats.get(&r);
+                //rplstats.dis_tx = r.dis_tx;
+                //rplstats.dio_tx = r.dio_tx;
+                //rplstats.dao_tx = r.dao_tx;
+                //rplstats.rank = r.rank;
+                memset(&rplstats, 0, sizeof(rplstats));
+                return &rplstats;
+            }
+            case 0x0d:
+            {
+                //call rpl_stats.clear();
+                memset(&rplstats, 0, sizeof(rplstats));
                 return 0;
             }
 #endif // BLIP_STATS

@@ -199,26 +199,26 @@ implementation
         call Timer.startPeriodic(320000);
 #endif
 
-
         e = call FlashAttr.getAttr(3, key, val, &val_len);
         if (e != SUCCESS)
         {
             printf("error? %d length %d\n", e, val_len);
         }
+        printf("key %s val %s\n", key, val);
         if (strncmp(val, "rpl", 3) == 0) {
             using_rpl = TRUE;
 #ifdef BORDER_ROUTER
-        call RPLRootControl.setRoot();
+            call RPLRootControl.setRoot();
 #else
-        call RPLRootControl.unsetRoot();
+            call RPLRootControl.unsetRoot();
 #endif
             call RPLControl.start();
             printf("\n\nUsing RPL\n\n");
         } else {
 #ifdef BORDER_ROUTER
-        call SERPRootControl.setRoot();
+            call SERPRootControl.setRoot();
 #else
-        call SERPRootControl.unsetRoot();
+            call SERPRootControl.unsetRoot();
 #endif
             call SERPControl.start();
             printf("\n\nUsing SERP\n\n");
@@ -436,7 +436,7 @@ implementation
                     call Flash_Driver.pop_callback();
                     return TRUE;
                 }
-                
+
                 //check for TCP callbacks
                 cb = call TCP_Driver.peek_callback();
                 if (cb != NULL) {
