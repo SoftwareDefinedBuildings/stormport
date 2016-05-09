@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
- *  
+ *
  * Copyright 2014, Michael Andersen <m.andersen@eecs.berkeley.edu>
  *
  * This file is largely copied from the Atmel supplied linker scripts
@@ -21,7 +21,7 @@
 
 OUTPUT_FORMAT("elf32-littlearm", "elf32-littlearm", "elf32-littlearm")
 OUTPUT_ARCH(arm)
-SEARCH_DIR(.) 
+SEARCH_DIR(.)
 
 /* Memory Spaces Definitions, 448K flash, 64K ram */
 MEMORY
@@ -123,6 +123,14 @@ SECTIONS
         _ebss = . ;
         _ezero = .;
     } > ram
+
+    .rpl (NOLOAD) : AT (_ebss) {*(.rpl .rpl*)}
+    _srpl = LOADADDR (.rpl);
+    _erpl = LOADADDR (.rpl) + SIZEOF (.rpl);
+    .serp (NOLOAD) : AT (_ebss) {*(.serp .serp*)}
+    _sserp = LOADADDR (.serp);
+    _eserp = LOADADDR (.serp) + SIZEOF (.serp);
+    . = MAX (SIZEOF (.serp), SIZEOF (.rpl));
 
     /* stack section */
     .stack (NOLOAD):
