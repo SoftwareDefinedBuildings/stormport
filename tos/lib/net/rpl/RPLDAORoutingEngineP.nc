@@ -78,7 +78,7 @@ generic module RPLDAORoutingEngineP() {
   uint8_t PATH_SEQUENCE = 0;
   uint8_t PATH_CONTROL = 0;
 
-  downwards_table_t downwards_table[ROUTE_TABLE_SZ];
+  downwards_table_t downwards_table[ROUTE_TABLE_SZ] OVERLAP("rpl");
   uint8_t downwards_table_count = 0;
   bool m_running = FALSE;
 

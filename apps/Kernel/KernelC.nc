@@ -49,17 +49,14 @@ implementation
     components LocalIeeeEui64P;
 
     KernelMainP.RadioControl ->  IPStackC;
-#if RPL_ROUTING
+
     components RPLRoutingC;
     KernelMainP.RPLControl -> RPLRoutingC;
-    KernelMainP.RootControl -> RPLRoutingC;
-#else
-#if SERP_ROUTING
+    KernelMainP.RPLRootControl -> RPLRoutingC;
     components SERPRoutingC;
     KernelMainP.SERPControl -> SERPRoutingC;
-    KernelMainP.RootControl -> SERPRoutingC;
-#endif
-#endif
+    KernelMainP.SERPRootControl -> SERPRoutingC;
+
     KernelMainP.NeighborDiscovery ->  IPStackC;
     KernelMainP.SetIPAddress -> IPAddressC;
     KernelMainP.LocalIeeeEui64 -> LocalIeeeEui64P;

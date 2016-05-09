@@ -75,6 +75,8 @@
 #include "blip_printf.h"
 #include "IPDispatch.h"
 
+parent_t parentSet[MAX_PARENT] OVERLAP("rpl");
+
 module RPLRankP {
   provides{
     interface RPLRank as RPLRankInfo;
@@ -130,7 +132,6 @@ implementation {
   bool ignore = FALSE;
   bool ROOT = FALSE;
   bool m_running = FALSE;
-  parent_t parentSet[MAX_PARENT];
 
   void resetValid();
   void getNewRank();

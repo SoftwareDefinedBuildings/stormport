@@ -31,7 +31,7 @@ module SERPRoutingEngineP {
 #define compare_ipv6(node1, node2) \
   (!memcmp((node1), (node2), sizeof(struct in6_addr)))
 
-    serp_route_statistics_t route_stats;
+    serp_route_statistics_t route_stats OVERLAP("rpl");
 
     // SERP Routing values
 
@@ -42,10 +42,10 @@ module SERPRoutingEngineP {
     // number of outstanding RS messages
     uint8_t outstanding_RS_messages = 0;
 
-    struct in6_addr BCAST_ADDRESS;
-    struct in6_addr unicast_rs_destination;
+    struct in6_addr BCAST_ADDRESS OVERLAP("rpl");
+    struct in6_addr unicast_rs_destination OVERLAP("rpl");
 
-    serp_neighbor_t preferred_parent;
+    serp_neighbor_t preferred_parent OVERLAP("rpl");
 
     /**** Global Vars ***/
     // whether or not the routing protocol is running
@@ -73,6 +73,7 @@ module SERPRoutingEngineP {
      * Trickle Timer
      */
     task void init() {
+        memset(&preferred_parent, 0, sizeof(preferred_parent));
         if (I_AM_ROOT) {
             printf(ERRORC "RESETTING MESH INFO we are root and starting\n" RESET);
             // calling reset before start puts us in rapid start mode
@@ -90,6 +91,7 @@ module SERPRoutingEngineP {
       serp_neighbor_t *chosen_parent;
       chosen_parent = call SERPNeighborTable.getLowestHopCount();
       if (chosen_parent == NULL) {
+          part_of_mesh = FALSE;
           printf(ERRORC "No parent w/ lowest hop count\n" RESET);
           return FALSE;
       }
@@ -260,12 +262,12 @@ module SERPRoutingEngineP {
                       we_are_in_neighbor_list = TRUE;
                       continue;
                   }
-                  printf(MAGENTA "check if %d is a neighbor\n" RESET, meshinfo->neighbors[i]);
+                  //printf(MAGENTA "check if %d is a neighbor\n" RESET, meshinfo->neighbors[i]);
                   if (!call SERPNeighborTable.isNeighborNodeID(meshinfo->neighbors[i])) {
                       memcpy(&neighbor.s6_addr16[7], &meshinfo->neighbors[i], 2);
-                      printf(MAGENTA "it not a neighbor! Adding address ");
-                      printf_in6addr(&neighbor);
-                      printf("\n" RESET);
+                      //printf(MAGENTA "it not a neighbor! Adding address ");
+                      //printf_in6addr(&neighbor);
+                      //printf("\n" RESET);
                       call ForwardingTable.addRoute(neighbor.s6_addr, 128, &hdr->ip6_src, ROUTE_IFACE_154);
                   }
               }
@@ -410,7 +412,7 @@ module SERPRoutingEngineP {
 
           memset(&option, 0, sizeof(struct nd_option_serp_mesh_info_t));
           option.type = ND6_SERP_MESH_INFO;
-          option.option_length = 5;
+          option.option_length = 7;
           option.reserved0 = 0;
           // add prefix length
           option.prefix_length = call NeighborDiscovery.getPrefixLength();
@@ -447,7 +449,7 @@ module SERPRoutingEngineP {
 
       pkt.ip6_data = &v[0];
 
-      // Send unicast RA to the link local address
+      // Send RA bcast
       memcpy(&pkt.ip6_hdr.ip6_dst, &BCAST_ADDRESS, 16);
 
       // reset this when we send
@@ -493,7 +495,7 @@ module SERPRoutingEngineP {
           serp_neighbor_t *neighbor;
 
           option.type = ND6_SERP_MESH_ANN;
-          option.option_length = 6;
+          option.option_length = 7;
           option.hop_count = hop_count;
           // default route:
           default_route = call ForwardingTable.lookupRoute(NULL, 0);
@@ -753,8 +755,9 @@ module SERPRoutingEngineP {
       }
 
       // if we are not root, check if our preferred parent has changed
-      if (!I_AM_ROOT) {
-        getPreferredParent();
+      if (!I_AM_ROOT && getPreferredParent()) {
+        // if it has changed, then we want to broadcast this information
+        call MeshInfoTrickleTimer.reset[meshinfo_key]();
       }
 
     }
@@ -766,7 +769,6 @@ module SERPRoutingEngineP {
     command void RouteStatistics.get(serp_route_statistics_t *stats) {
         route_stats.hop_count = hop_count;
         memcpy(stats, &route_stats, sizeof(serp_route_statistics_t));
-        printf(CYAN "SENDING STATS %d %d %d %d\n" RESET, stats->mi_sent, stats->mi_recv, stats->rs_sent, stats->rs_recv);
     }
 
     command void RouteStatistics.clear() {

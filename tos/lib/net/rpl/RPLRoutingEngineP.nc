@@ -107,11 +107,11 @@ implementation{
 
   uint16_t INCONSISTENCY_COUNT = 0;
 
-  struct in6_addr DEF_PREFIX;
+  struct in6_addr DEF_PREFIX OVERLAP("rpl");
 
-  struct in6_addr ROOT_ADDR;
-  struct in6_addr MULTICAST_ADDR;
-  struct in6_addr UNICAST_DIO_ADDR;
+  struct in6_addr ROOT_ADDR OVERLAP("rpl");
+  struct in6_addr MULTICAST_ADDR OVERLAP("rpl");
+  struct in6_addr UNICAST_DIO_ADDR OVERLAP("rpl");
 
   /* Define Functions and Tasks */
   void resetTrickleTime();
@@ -270,7 +270,7 @@ implementation{
     call IPAddress.getLLAddr(&pkt.ip6_hdr.ip6_src);
 
     call IP_DIO.send(&pkt);
-  }
+  }  
 
   task void sendDISTask() {
     struct ip6_packet pkt;

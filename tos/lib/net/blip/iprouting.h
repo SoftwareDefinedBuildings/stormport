@@ -3,6 +3,9 @@
 
 #include <lib6lowpan/ip.h>
 
+#define OVERLAP(name) \
+    __attribute__((section ("." name)))
+
 enum {
   ROUTE_INVAL_KEY = -1,
 };

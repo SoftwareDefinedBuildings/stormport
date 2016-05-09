@@ -101,3 +101,4 @@ INCLUDE_DIRS ?= $(TOSDIR)/platforms/$(PLATFORM)
 CFLAGS += -mthumb -D__SAM4LC8C__ -D__ATSAM4LC8C__ -DARM_MATH_CM4=true  -fdata-sections
 CFLAGS += -ffunction-sections -mlong-calls -g3 -mcpu=cortex-m4 -pipe -fno-strict-aliasing
 CFLAGS += -std=gnu99 -ffunction-sections -fdata-sections --param max-inline-insns-single=500
+CFLAGS += -Wl,--no-check-sections

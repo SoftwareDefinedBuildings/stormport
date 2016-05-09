@@ -23,7 +23,7 @@ module SERPNeighborTableP {
     provides interface SERPNeighborTable;
     provides interface Init;
 } implementation {
-    serp_neighbor_t neighbor_table[MAX_SERP_NEIGHBOR_COUNT];
+    serp_neighbor_t neighbor_table[MAX_SERP_NEIGHBOR_COUNT] OVERLAP("serp");
 
 #define compare_ipv6(node1, node2) \
   (!memcmp((node1), (node2), sizeof(struct in6_addr)))

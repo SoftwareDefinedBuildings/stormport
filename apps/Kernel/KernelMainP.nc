@@ -53,13 +53,10 @@ module KernelMainP
     {
         interface Boot;
         interface SplitControl as RadioControl;
-#if RPL_ROUTING
         interface StdControl as RPLControl;
-#endif
-#if SERP_ROUTING
         interface StdControl as SERPControl;
-#endif
-        interface RootControl;
+        interface RootControl as RPLRootControl;
+        interface RootControl as SERPRootControl;
         interface FlashAttr;
         interface Timer<T32khz> as Timer;
         interface UartStream;
@@ -95,6 +92,7 @@ implementation
     #define STDIN_SIZE 128
     #define STDOUT_SIZE 256
 
+    bool    using_rpl = FALSE;
     uint8_t process_stdin_ringbuffer [STDIN_SIZE];
     uint8_t process_stdout_ringbuffer [STDOUT_SIZE];
     uint32_t *process_syscall_rv;
@@ -201,19 +199,30 @@ implementation
         call Timer.startPeriodic(320000);
 #endif
 
+
+        e = call FlashAttr.getAttr(3, key, val, &val_len);
+        if (e != SUCCESS)
+        {
+            printf("error? %d length %d\n", e, val_len);
+        }
+        if (strncmp(val, "rpl", 3) == 0) {
+            using_rpl = TRUE;
 #ifdef BORDER_ROUTER
-        call RootControl.setRoot();
+        call RPLRootControl.setRoot();
 #else
-        call RootControl.unsetRoot();
+        call RPLRootControl.unsetRoot();
 #endif
-
-#if RPL_ROUTING
-        call RPLControl.start();
+            call RPLControl.start();
+            printf("\n\nUsing RPL\n\n");
+        } else {
+#ifdef BORDER_ROUTER
+        call SERPRootControl.setRoot();
+#else
+        call SERPRootControl.unsetRoot();
 #endif
-
-#if SERP_ROUTING
-        call SERPControl.start();
-#endif
+            call SERPControl.start();
+            printf("\n\nUsing SERP\n\n");
+        }
 
         call ENSEN.makeOutput();
         call ENSEN.clr();

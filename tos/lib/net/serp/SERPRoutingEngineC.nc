@@ -29,7 +29,7 @@ implementation {
     // @param h Upper bound of the time period in seconds.
     // @param k Redundancy constant.
     // @param count How many timers to provide.
-    components new TrickleTimerMilliC(2, 1024, 1, 2);
+    components new TrickleTimerMilliC(2, 1024, 2, 2);
 
     components SERPNeighborTableP;
     SERPNeighborTableP.Init <- MainC.SoftwareInit;

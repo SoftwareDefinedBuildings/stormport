@@ -9,7 +9,7 @@
 
 /*** constants for SERP ***/
 #define MAX_SERP_NEIGHBOR_COUNT 20
-#define MAX_SERP_NEIGHBOR_MSG 8
+#define MAX_SERP_NEIGHBOR_MSG 16
 #define IPV6_ADDR_ALL_ROUTERS "ff02::2"
 #define WAIT_BEFORE_SEND_ANNOUNCEMENT 5000 //  5 seconds
 
@@ -50,8 +50,8 @@ struct nd_option_serp_mesh_info_t {
     uint16_t reserved0;
     // 4 bytes
 
-    uint16_t neighbors[8];
-    // 4 bytes
+    uint16_t neighbors[16];
+    // 32 bytes
 
     // the prefix of the mesh
     struct in6_addr prefix;
@@ -77,8 +77,8 @@ struct nd_option_serp_mesh_announcement_t {
     // TODO: right now this uses unique 2-byte identifiers for
     // nodes. We'll want to do prefix encoding for compression of
     // the ful 64-bit lower addresses
-    uint16_t neighbors[8];
-    // 4 bytes
+    uint16_t neighbors[16];
+    // 32 bytes
 
     // the preferred parent/default route chosen
     struct in6_addr parent;

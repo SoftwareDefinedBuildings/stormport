@@ -28,7 +28,7 @@ implementation
         uint8_t flags; //set by get_tentry
     } tentry_t;
 
-    #define BUFSIZE 64
+    #define BUFSIZE 16
     #define NONE 0xFFFF
     #define CBQUEUESIZE 32
     tentry_t norace timer_buffer [BUFSIZE];

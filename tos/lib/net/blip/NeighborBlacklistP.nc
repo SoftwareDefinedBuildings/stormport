@@ -21,7 +21,7 @@ module NeighborBlacklistP {
     };
 
     // basically using the same structure as IPForwardingEngineP
-    struct blacklist_entry blacklist_table[ROUTE_TABLE_SZ];
+    struct blacklist_entry blacklist_table[1];
 
     void printIgnore(struct in6_addr *addr) {
 #ifndef BLIP_STFU
