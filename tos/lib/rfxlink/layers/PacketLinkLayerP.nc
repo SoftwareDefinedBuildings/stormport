@@ -70,7 +70,7 @@ implementation
 	uint16_t totalRetries;
 
 	/**
-	 * We do everything from a single task in order to call SubSend.send 
+	 * We do everything from a single task in order to call SubSend.send
 	 * and Send.sendDone only once. This helps inlining the code and
 	 * reduces the code size.
 	 */
@@ -83,11 +83,14 @@ implementation
 
 		if( state == STATE_SENDDONE )
 		{
-			if( retries == 0 || call PacketAcknowledgements.wasAcked(currentMsg) )
+            // SAM: always need an ACK, since we changed it due to hardware retries
+			if(/* retries == 0 || */call PacketAcknowledgements.wasAcked(currentMsg) )
 				state = STATE_SIGNAL + SUCCESS;
-			else if( ++totalRetries < retries )
+			else if( totalRetries < retries )
 			{
 				uint16_t delay;
+
+                totalRetries++;
 
 				state = STATE_SENDING;
 				delay = call PacketLink.getRetryDelay(currentMsg);
@@ -152,7 +155,8 @@ implementation
         }
 
 		// it is enough to set it only once
-		if( call PacketLink.getRetries(msg) > 0 )
+        // SAM: always do this, since we have hardware retries
+		if( 1 || call PacketLink.getRetries(msg) > 0 )
 			call PacketAcknowledgements.requestAck(msg);
 
 		currentMsg = msg;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, Vanderbilt University
+ * Copyright (c) 2016, University of California, Berkeley
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,30 +29,30 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Author: Miklos Maroti
+ * Author: Sam Kumar <samkumar@berkeley.edu>
  */
 
-#ifndef __IEEE154PACKETLAYER_H__
-#define __IEEE154PACKETLAYER_H__
-
-#include "Ieee154.h"
-
-typedef nx_struct ieee154_simple_header_t
+generic configuration SoftwareCsmaLayerC()
 {
-	nxle_uint16_t fcf;
-	nxle_uint8_t dsn;
-	nxle_uint16_t destpan;
-	nxle_uint16_t dest;
-	nxle_uint16_t src;
-} ieee154_simple_header_t;
+	provides
+	{
+		interface RadioSend;
+		interface RadioReceive;
+	}
+	uses
+	{
+		interface RadioSend as SubSend;
+		interface RadioReceive as SubReceive;
+        interface RadioAlarm;
+	}
+}
 
-typedef nx_struct ieee154_long_addr_header_t
+implementation
 {
-	nxle_uint16_t fcf;
-	nxle_uint8_t dsn;
-	nxle_uint16_t destpan;
-	nxle_uint16_t dest[4];
-	nxle_uint16_t src[4];
-} ieee154_long_addr_header_t;
+	components new SoftwareCsmaLayerP();
 
-#endif//__IEEE154PACKETLAYER_H__
+	RadioSend = SoftwareCsmaLayerP;
+	SoftwareCsmaLayerP.SubSend = SubSend;
+    SoftwareCsmaLayerP.RadioAlarm = RadioAlarm;
+	RadioReceive = SubReceive;
+}

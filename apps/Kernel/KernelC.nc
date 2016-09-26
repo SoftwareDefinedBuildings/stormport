@@ -125,5 +125,7 @@ implementation
     components ScrufflesDriverC;
     KernelMainP.Scruffles_Driver -> ScrufflesDriverC;
     components TCPDriverC;
+    //TCPDriverC.ProvidedRetryStatistics -> IPStackC;
+    //TCPDriverC.ProvidedIPStatistics -> IPStackC;
     KernelMainP.TCP_Driver -> TCPDriverC;
 }

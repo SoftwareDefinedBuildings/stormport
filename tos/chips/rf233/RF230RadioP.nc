@@ -212,7 +212,8 @@ implementation
 
 	async command bool CsmaConfig.requiresSoftwareCCA(message_t* msg)
 	{
-		return call Ieee154PacketLayer.isDataFrame(msg);
+        return 1;
+		//return call Ieee154PacketLayer.isDataFrame(msg);
 	}
 
 /*----------------- TrafficMonitorConfig -----------------*/
@@ -220,7 +221,7 @@ implementation
 	async command uint16_t TrafficMonitorConfig.getBytes(message_t* msg)
 	{
 		// pure airtime: preable (4 bytes), SFD (1 byte), length (1 byte), payload + CRC (len bytes)
-		
+
 		return call RF230Packet.payloadLength(msg) + 6;
 	}
 
@@ -243,7 +244,8 @@ implementation
 
 	async command uint16_t RandomCollisionConfig.getMinimumBackoff()
 	{
-		return (uint16_t)(RF230_BACKOFF_MIN * RADIO_ALARM_MICROSEC);
+        return 0;
+		//return (uint16_t)(RF230_BACKOFF_MIN * RADIO_ALARM_MICROSEC);
 	}
 
 #ifndef RF230_BACKOFF_INIT
@@ -252,7 +254,8 @@ implementation
 
 	async command uint16_t RandomCollisionConfig.getInitialBackoff(message_t* msg)
 	{
-		return (uint16_t)(RF230_BACKOFF_INIT * RADIO_ALARM_MICROSEC);
+        return 32; // 1ms
+		//return (uint16_t)(RF230_BACKOFF_INIT * RADIO_ALARM_MICROSEC);
 	}
 
 #ifndef RF230_BACKOFF_CONG

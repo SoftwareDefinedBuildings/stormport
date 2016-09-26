@@ -695,7 +695,7 @@ tcp_input(struct ip6_hdr* ip6, struct tcphdr* th, struct tcpcb* tp, struct tcpcb
 	}
 	tlen -= off;	/* tlen is used instead of ti->ti_len */
 	// It seems that now tlen is the length of the data
-	
+
 	if (off > sizeof (struct tcphdr)) {
 #if 0 /* OMIT HANDLING OF EXTRA OPTIONS. */
 #ifdef INET6
@@ -743,7 +743,7 @@ tcp_input(struct ip6_hdr* ip6, struct tcphdr* th, struct tcpcb* tp, struct tcpcb
 	 * not include the length of IP header and options, only the length of
 	 * the TCP header and options.
 	 */
-	drop_hdrlen = /*off0 +*/ off; 
+	drop_hdrlen = /*off0 +*/ off;
 
 	/*
 	 * Locate pcb for segment; if we're likely to add or remove a
@@ -1063,7 +1063,7 @@ relocked:
 //		inc.inc_lport = th->th_dport;
 //		inc.inc_fibnum = so->so_fibnum;
 		inc.fport = th->th_sport;
-		inc.lport = th->th_dport;	
+		inc.lport = th->th_dport;
 
 		/*
 		 * Check for an existing connection attempt in syncache if
@@ -1388,7 +1388,7 @@ relocked:
 		memcpy(&tp->faddr, &ip6->ip6_src, sizeof(tp->faddr));
 		tp->fport = th->th_sport;
 		tp->lport = tpl->lport;
-		
+
 		tp->t_flags = tp->t_flags & (TF_NOPUSH | TF_NODELAY | TF_NOOPT);
 //		tp->t_flags = sototcpcb(lso)->t_flags & (TF_NOPUSH|TF_NODELAY);
 //		if (sc->sc_flags & SCF_NOOPT)
@@ -1426,7 +1426,7 @@ relocked:
 				*/
 				/* I have ~30K of memory. There's no reason I would need
 				   window scaling. */
-				
+
 				tp->t_flags |= TF_REQ_SCALE|TF_RCVD_SCALE;
 				tp->snd_scale = /*sc->sc_requested_s_scale*/to.to_wscale;
 				tp->request_r_scale = wscale;
@@ -1435,7 +1435,7 @@ relocked:
 				tp->t_flags |= TF_REQ_TSTMP|TF_RCVD_TSTMP;
 				tp->ts_recent = /*sc->sc_tsreflect*/to.to_tsval;
 				tp->ts_recent_age = tcp_ts_getticks();
-				tp->ts_offset = /*sc->sc_tsoff*/0; // No syncookies, so this should always be 0 
+				tp->ts_offset = /*sc->sc_tsoff*/0; // No syncookies, so this should always be 0
 			}
 #if 0
 	#ifdef TCP_SIGNATURE
@@ -1448,13 +1448,13 @@ relocked:
 		}
 		if (/*sc->sc_flags & SCF_ECN*/(th->th_flags & (TH_ECE|TH_CWR)) && V_tcp_do_ecn)
 			tp->t_flags |= TF_ECN_PERMIT;
-		
+
 		/*
 		 * Set up MSS and get cached values from tcp_hostcache.
 		 * This might overwrite some of the defaults we just set.
 		 */
 		tcp_mss(tp, /*sc->sc_peer_mss*/to.to_mss);
-		
+
 		/*
 		 * Entry added to syncache and mbuf consumed.
 		 * Only the listen socket is unlocked by syncache_add().
@@ -1465,7 +1465,7 @@ relocked:
 //		}
 //		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
 		tcp_output(tp); // to send the SYN-ACK
-		
+
 		accepted_connection(tpl, &ip6->ip6_src, th->th_sport);
 		return (IPPROTO_DONE);
 	} else if (tp->t_state == TCPS_LISTEN) {
@@ -1478,7 +1478,7 @@ relocked:
 		 */
 		goto dropunlock;
 	}
-	
+
 	KASSERT(tp, ("tp is still NULL!"));
 
 #if 0 // DON'T DO TCP SIGNATURE
@@ -1690,7 +1690,7 @@ tcp_do_segment(struct ip6_hdr* ip6, struct tcphdr *th,
 	tcp_dooptions(&to, (u_char *)(th + 1),
 	    (th->th_off << 2) - sizeof(struct tcphdr),
 	    (thflags & TH_SYN) ? TO_SYN : 0);
-	    
+
 	/*
 	 * If echoed timestamp is later than the current time,
 	 * fall back to non RFC1323 RTT calculation.  Normalize
@@ -1772,7 +1772,7 @@ tcp_do_segment(struct ip6_hdr* ip6, struct tcphdr *th,
 	    th->th_seq == tp->rcv_nxt &&
 	    (thflags & (TH_SYN|TH_FIN|TH_RST|TH_URG|TH_ACK)) == TH_ACK &&
 	    tp->snd_nxt == tp->snd_max &&
-	    tiwin && tiwin == tp->snd_wnd && 
+	    tiwin && tiwin == tp->snd_wnd &&
 	    ((tp->t_flags & (TF_NEEDSYN|TF_NEEDFIN)) == 0) &&
 	    /*LIST_EMPTY(&tp->t_segq) &&*/
 	    bmp_isempty(tp->reassbmp, REASSBMP_SIZE(tp)) && // Added by Sam
@@ -1859,7 +1859,7 @@ tcp_do_segment(struct ip6_hdr* ip6, struct tcphdr *th,
 				if (SEQ_GT(tp->snd_una, tp->snd_recover) &&
 				    SEQ_LEQ(th->th_ack, tp->snd_recover))
 					tp->snd_recover = th->th_ack - 1;
-				
+
 				/*
 				 * Let the congestion control algorithm update
 				 * congestion control related information. This
@@ -1925,7 +1925,7 @@ tcp_do_segment(struct ip6_hdr* ip6, struct tcphdr *th,
 			if ((tp->t_flags & TF_SACK_PERMIT) && tp->rcv_numsacks)
 				tcp_clean_sackreport(tp);
 //			TCPSTAT_INC(tcps_preddat);
-			
+
 			tp->rcv_nxt += tlen;
 			/*
 			 * Pull snd_wl1 up to prevent seq wrap relative to
@@ -2151,7 +2151,7 @@ tcp_do_segment(struct ip6_hdr* ip6, struct tcphdr *th,
 				tp->t_flags |= TF_ECN_PERMIT;
 //				TCPSTAT_INC(tcps_ecn_shs);
 			}
-			
+
 			/*
 			 * Received <SYN,ACK> in SYN_SENT[*] state.
 			 * Transitions:
@@ -2325,7 +2325,7 @@ tcp_do_segment(struct ip6_hdr* ip6, struct tcphdr *th,
 			rstreason = BANDLIM_UNLIMITED;
 		} else {*/
 			/* Send challenge ACK. */
-			printf("Sending challenge ACK\n");
+			//printf("Sending challenge ACK\n");
 			tcp_respond(tp, ip6, th, tp->rcv_nxt, tp->snd_nxt, TH_ACK);
 			tp->last_ack_sent = tp->rcv_nxt;
 //			m = NULL;
@@ -2479,14 +2479,14 @@ tcp_do_segment(struct ip6_hdr* ip6, struct tcphdr *th,
 	/*
 	 * If last ACK falls within this segment's sequence numbers,
 	 * record its timestamp.
-	 * NOTE: 
+	 * NOTE:
 	 * 1) That the test incorporates suggestions from the latest
 	 *    proposal of the tcplw@cray.com list (Braden 1993/04/26).
 	 * 2) That updating only on newer timestamps interferes with
 	 *    our earlier PAWS tests, so this check should be solely
 	 *    predicated on the sequence space of this segment.
-	 * 3) That we modify the segment boundary check to be 
-	 *        Last.ACK.Sent <= SEG.SEQ + SEG.Len  
+	 * 3) That we modify the segment boundary check to be
+	 *        Last.ACK.Sent <= SEG.SEQ + SEG.Len
 	 *    instead of RFC1323's
 	 *        Last.ACK.Sent < SEG.SEQ + SEG.Len,
 	 *    This modified check allows us to overcome RFC1323's
@@ -2517,9 +2517,9 @@ tcp_do_segment(struct ip6_hdr* ip6, struct tcphdr *th,
 		else
 			goto drop;
 	}
-	
-	printf("Processing ACK\n");
-	
+
+	//printf("Processing ACK\n");
+
 	/*
 	 * Ack processing.
 	 */
@@ -2569,7 +2569,7 @@ tcp_do_segment(struct ip6_hdr* ip6, struct tcphdr *th,
 		if (tlen == 0 && (thflags & TH_FIN) == 0)
 			(void) tcp_reass(tp, (struct tcphdr *)0, 0,
 			    (/*struct mbuf **/ uint8_t*)0, signals);
-			    
+
 		tp->snd_wl1 = th->th_seq - 1;
 		/* FALLTHROUGH */
 
@@ -2591,7 +2591,7 @@ tcp_do_segment(struct ip6_hdr* ip6, struct tcphdr *th,
 //			TCPSTAT_INC(tcps_rcvacktoomuch);
 			goto dropafterack;
 		}
-		
+
 		if ((tp->t_flags & TF_SACK_PERMIT) &&
 		    ((to.to_flags & TOF_SACK) ||
 		     !TAILQ_EMPTY(&tp->snd_holes)))
@@ -2652,10 +2652,10 @@ tcp_do_segment(struct ip6_hdr* ip6, struct tcphdr *th,
 					if ((tp->t_flags & TF_SACK_PERMIT) &&
 					    IN_FASTRECOVERY(tp->t_flags)) {
 						int awnd;
-						
+
 						/*
 						 * Compute the amount of data in flight first.
-						 * We can inject new data into the pipe iff 
+						 * We can inject new data into the pipe iff
 						 * we have less than 1/2 the original window's
 						 * worth of data in flight.
 						 */
@@ -2697,7 +2697,7 @@ tcp_do_segment(struct ip6_hdr* ip6, struct tcphdr *th,
 					cc_ack_received(tp, th, CC_DUPACK);
 					tcp_timer_activate(tp, TT_REXMT, 0);
 					tp->t_rtttime = 0;
-					
+
 					if (tp->t_flags & TF_SACK_PERMIT) {
 //						TCPSTAT_INC(
 //						    tcps_sack_recovery_episode);
@@ -2737,7 +2737,7 @@ tcp_do_segment(struct ip6_hdr* ip6, struct tcphdr *th,
 					cc_ack_received(tp, th, CC_DUPACK);
 					oldcwnd = tp->snd_cwnd;
 					oldsndmax = tp->snd_max;
-					
+
 					KASSERT(tp->t_dupacks == 1 ||
 					    tp->t_dupacks == 2,
 					    ("%s: dupacks not 1 or 2",
@@ -2795,7 +2795,7 @@ tcp_do_segment(struct ip6_hdr* ip6, struct tcphdr *th,
 			} else
 				cc_post_recovery(tp, th);
 		}
-		
+
 		tp->t_dupacks = 0;
 		/*
 		 * If we reach this point, ACK is not a duplicate,
@@ -2826,7 +2826,7 @@ process_ACK:
 //		TCPSTAT_INC(tcps_rcvackpack);
 //		TCPSTAT_ADD(tcps_rcvackbyte, acked);
 
-		printf("Bytes acked: %d\n", acked);
+		//printf("Bytes acked: %d\n", acked);
 		/*
 		 * If we just performed our first retransmit, and the ACK
 		 * arrives within our recovery window, then it was a mistake
@@ -3195,7 +3195,7 @@ dodata:							/* XXX */
 	 * that the connection is closing.
 	 */
 	if (thflags & TH_FIN) {
-	    printf("FIN Processing start\n");
+	    //printf("FIN Processing start\n");
 		if (TCPS_HAVERCVDFIN(tp->t_state) == 0) {
 //			socantrcvmore(so);
             tpcantrcvmore(tp);
@@ -3912,4 +3912,3 @@ tcp_newreno_partial_ack(struct tcpcb *tp, struct tcphdr *th)
 		tp->snd_cwnd = 0;
 	tp->snd_cwnd += tp->t_maxseg;
 }
-

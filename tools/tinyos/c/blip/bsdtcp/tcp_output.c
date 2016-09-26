@@ -38,6 +38,9 @@
 #include "tcp_timer.h"
 #include "cbuf.h"
 
+int sacks_sent = 0;
+int segs_sent = 0;
+
 // From ip_compat.h
 #define	bcopy(a,b,c)	memmove(b,a,c)
 
@@ -204,7 +207,7 @@ again:
 	if ((tp->t_flags & TF_SACK_PERMIT) && IN_FASTRECOVERY(tp->t_flags) &&
 	    (p = tcp_sack_output(tp, &sack_bytes_rxmt))) {
 		long cwin;
-		
+
 		cwin = min(tp->snd_wnd, tp->snd_cwnd) - sack_bytes_rxmt;
 		if (cwin < 0)
 			cwin = 0;
@@ -320,14 +323,14 @@ after_sack_rexmit:
 			    off);
 			/*
 			 * Don't remove this (len > 0) check !
-			 * We explicitly check for len > 0 here (although it 
-			 * isn't really necessary), to work around a gcc 
+			 * We explicitly check for len > 0 here (although it
+			 * isn't really necessary), to work around a gcc
 			 * optimization issue - to force gcc to compute
 			 * len above. Without this check, the computation
 			 * of len is bungled by the optimizer.
 			 */
 			if (len > 0) {
-				cwin = tp->snd_cwnd - 
+				cwin = tp->snd_cwnd -
 					(tp->snd_nxt - tp->sack_newdata) -
 					sack_bytes_rxmt;
 				if (cwin < 0)
@@ -386,7 +389,7 @@ after_sack_rexmit:
 			}
 		}
 	}
-	
+
 
 	/* len will be >= 0 after this point. */
 	KASSERT(len >= 0, ("[%s:%d]: len < 0", __func__, __LINE__));
@@ -573,7 +576,7 @@ after_sack_rexmit:
 		} else
 			oldwin = 0;
 
-		/* 
+		/*
 		 * If the new window size ends up being the same as the old
 		 * size when it is scaled, then don't force a window update.
 		 */
@@ -622,7 +625,7 @@ dontupdate:
 	    !tcp_timer_active(tp, TT_PERSIST)) {
 		tcp_timer_activate(tp, TT_REXMT, tp->t_rxtcur);
 		goto just_return;
-	} 
+	}
 
 	/*
 	 * TCP window updates are not reliable, rather a polling protocol
@@ -720,7 +723,7 @@ send:
 				tp->rfbuf_ts = tcp_ts_getticks();
 #endif
 		}
-		
+
 		/* Selective ACK's. */
 		if (tp->t_flags & TF_SACK_PERMIT) {
 			if (flags & TH_SYN)
@@ -1021,7 +1024,7 @@ send:
 	}
 #endif
 	/* Instead of the previous code that "grabs an mbuf", we need to do this the
-	   TinyOS way, where we ip_malloc a buffer. */	
+	   TinyOS way, where we ip_malloc a buffer. */
 	// Need to ip_malloc an extra three bytes so that we can word-align the packet
 	alen = sizeof(struct ip6_packet) + sizeof(struct tcphdr) + optlen + ipoptlen + sizeof(struct ip_iovec);
 	bufreal = ip_malloc(alen + 3);
@@ -1053,9 +1056,9 @@ send:
 		startptr->iov.iov_len -= startoffset;
 		endptr->iov.iov_len -= endextra;
 		endptr->iov.iov_next = NULL; // end of the chain
-		
+
 		iov->iov_next = &startptr->iov; // connect to our chain
-		
+
 		/*
 		 * If we're sending everything we've got, set PUSH.
 		 * (This will keep happy those implementations which only
@@ -1065,12 +1068,12 @@ send:
 		if (off + len == /*sbused(&so->so_snd)*/used_space)
 			flags |= TH_PUSH;
 	}
-	
+
 	ip6 = (struct ip6_hdr*) &msg->ip6_hdr;
 	th = (struct tcphdr*) ((char*) (ip6 + 1) + ipoptlen);
-	
+
 	tcpip_fillheaders(tp, ip6, th);
-	
+
 	//SOCKBUF_UNLOCK_ASSERT(&so->so_snd);
 //	m->m_pkthdr.rcvif = (struct ifnet *)0;
 //#ifdef MAC
@@ -1132,14 +1135,14 @@ send:
 				ip->ip_tos |= IPTOS_ECN_ECT0;
 			TCPSTAT_INC(tcps_ecn_ect0);
 		}
-		
+
 		/*
 		 * Reply with proper ECN notifications.
 		 */
 		if (tp->t_flags & TF_ECN_SND_CWR) {
 			flags |= TH_CWR;
 			tp->t_flags &= ~TF_ECN_SND_CWR;
-		} 
+		}
 		if (tp->t_flags & TF_ECN_SND_ECE)
 			flags |= TH_ECE;
 	}
@@ -1377,7 +1380,7 @@ send:
 		// Send packet the TinyOS way
 		send_message(tp, msg, th, len + optlen + sizeof(struct tcp_hdr));
 		ip_free(bufreal);
-		
+
 		if (len) {
 			// Restore the iovecs
 			memcpy(&startptr->iov, &startvec, sizeof(struct ip_iovec));
@@ -1440,7 +1443,7 @@ out:
 	 * In transmit state, time the transmission and arrange for
 	 * the retransmit.  In persist state, just set snd_max.
 	 */
-	if ((tp->t_flags & TF_FORCEDATA) == 0 || 
+	if ((tp->t_flags & TF_FORCEDATA) == 0 ||
 	    !tcp_timer_active(tp, TT_PERSIST)) {
 		tcp_seq startseq = tp->snd_nxt;
 
@@ -1756,6 +1759,7 @@ tcp_addoptions(struct tcpopt *to, u_char *optp)
 				sack++;
 			}
 //			TCPSTAT_INC(tcps_sack_send_blocks);
+			sacks_sent++;
 			break;
 			}
 		default:

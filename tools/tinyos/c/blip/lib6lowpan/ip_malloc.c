@@ -22,6 +22,7 @@
 #ifndef NO_IP_MALLOC
 #include <stdint.h>
 #include <stdio.h>
+#include "blip_printf.h"
 #include "ip_malloc.h"
 
 uint8_t heap[IP_MALLOC_HEAP_SIZE];
@@ -52,7 +53,10 @@ void *ip_malloc(uint16_t sz) {
     *next = (oldsize - sz) & IP_MALLOC_LEN;
 
     return cur + 1;
-  } else return NULL;
+  } else {
+    storm_write_payload("ip_malloc failed\n", 17);
+    return NULL;
+  }
 }
 
 void ip_free(void *ptr) {

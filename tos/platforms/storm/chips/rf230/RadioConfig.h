@@ -73,6 +73,8 @@
 #include <RF230DriverLayer.h>
 #include "Timer.h"
 
+#define TRAFFIC_MONITOR
+
 enum
 {
 	/**
@@ -105,7 +107,7 @@ enum
 #endif
 
 /*
- * This is the command used to calculate the CRC for the RF230 chip. 
+ * This is the command used to calculate the CRC for the RF230 chip.
  * TODO: Check why the default crcByte implementation is in a different endianness
  */
 inline uint16_t RF230_CRCBYTE_COMMAND(uint16_t crc, uint8_t data)
@@ -115,7 +117,7 @@ inline uint16_t RF230_CRCBYTE_COMMAND(uint16_t crc, uint8_t data)
     data ^= lo8; //lo8 (crc);
     data ^= data << 4;
 
-    return ((((uint16_t)data << 8) | hi8 /*hi8 (crc)*/) ^ (uint8_t)(data >> 4) 
+    return ((((uint16_t)data << 8) | hi8 /*hi8 (crc)*/) ^ (uint8_t)(data >> 4)
         ^ ((uint16_t)data << 3));
 }
 

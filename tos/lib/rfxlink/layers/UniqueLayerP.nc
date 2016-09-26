@@ -92,7 +92,8 @@ implementation
 
 	tasklet_async event message_t* SubReceive.receive(message_t* msg)
 	{
-		uint8_t idx = call Neighborhood.insertNode(call UniqueConfig.getSender(msg));
+        volatile am_addr_t sender = call UniqueConfig.getSender(msg);
+		uint8_t idx = call Neighborhood.insertNode((am_addr_t) sender);
 		uint8_t dsn = call UniqueConfig.getSequenceNumber(msg);
 
 		if( call NeighborhoodFlag.get(idx) )
@@ -102,7 +103,7 @@ implementation
 			if( diff == 0 )
 			{
 				call UniqueConfig.reportChannelError();
-				//printf("unique doing thingy\n");
+				printf("unique doing thingy\n");
 				return msg;
 			}
 		}

@@ -130,7 +130,7 @@
 
 #define	TCP_MAXRXTSHIFT	12			/* maximum retransmits */
 
-#define	TCPTV_DELACK	( hz/10 )		/* 100ms timeout */
+#define	TCPTV_DELACK	( hz/5 )		/* SAM: Changed this to 200ms timeout */ ///* 100ms timeout */
 
 #ifdef	TCPTIMERS
 static const char *tcptimers[] =

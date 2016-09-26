@@ -58,7 +58,9 @@ implementation
 
 		for(i = 0; i < NEIGHBORHOOD_SIZE; ++i)
 			nodes[i] = AM_BROADCAST_ADDR;
-	
+
+        last = 0;
+
 		return SUCCESS;
 	}
 

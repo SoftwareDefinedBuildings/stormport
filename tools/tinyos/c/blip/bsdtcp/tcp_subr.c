@@ -28,7 +28,7 @@
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
  */
- 
+
 #include "ip.h"
 #include "ip6.h"
 #include "tcp.h"
@@ -41,7 +41,7 @@
 #include "cc.h"
 #include "lbuf.h"
 
-/* EXTERN DECLARATIONS FROM TCP_TIMER.H */ 
+/* EXTERN DECLARATIONS FROM TCP_TIMER.H */
 #if 0 // I put these in the enum below
 int tcp_keepinit;		/* time to establish connection */
 int tcp_keepidle;		/* time before keepalive probes begin */
@@ -67,7 +67,7 @@ enum tcp_subr_consts {
 	tcp_msl = TCPTV_MSL,
 	tcp_rexmit_slop = TCPTV_CPU_VAR,
 	tcp_finwait2_timeout = TCPTV_FINWAIT2_TIMEOUT,
-	
+
     V_tcp_do_rfc1323 = 1,
     V_tcp_v6mssdflt = MSS_6LOWPAN,
     /* Normally, this is used to prevent DoS attacks by sending tiny MSS values in the options. */
@@ -76,12 +76,12 @@ enum tcp_subr_consts {
 };
 
 // A simple linear congruential number generator
-tcp_seq seed = (tcp_seq) 0xbeaddeed; 
+tcp_seq seed = (tcp_seq) 0xbeaddeed;
 tcp_seq tcp_new_isn(struct tcpcb* tp) {
     seed = (((tcp_seq) 0xfaded011) * seed) + (tcp_seq) 0x1ead1eaf;
     return seed;
 }
- 
+
 /* This is based on tcp_init in tcp_subr.c. */
 void tcp_init(void) {
 	// Added by Sam: Need to initialize the sackhole pool.
@@ -166,7 +166,7 @@ void tcp_init(void) {
 #endif
 	/* XXX virtualize those bellow? */
 
-#if 0 // To save memory, I put these in an enum, defined above	
+#if 0 // To save memory, I put these in an enum, defined above
 	tcp_delacktime = TCPTV_DELACK;
 	tcp_keepinit = TCPTV_KEEP_INIT;
 	tcp_keepidle = TCPTV_KEEP_IDLE;
@@ -229,7 +229,7 @@ tcp_state_change(struct tcpcb *tp, int newstate)
 #endif
 #endif
     int pstate = tp->t_state;
-    printf("Socket %d: %s --> %s\n", tp->index, tcpstates[pstate], tcpstates[newstate]);
+    //printf("Socket %d: %s --> %s\n", tp->index, tcpstates[pstate], tcpstates[newstate]);
 	tp->t_state = newstate;
 #if 0
 	TCP_PROBE6(state__change, NULL, tp, NULL, tp, NULL, pstate);
@@ -241,30 +241,30 @@ tcp_state_change(struct tcpcb *tp, int newstate)
 void initialize_tcb(struct tcpcb* tp, uint16_t lport, uint8_t* recvbuf, size_t recvbuflen, uint8_t* reassbmp) {
 	uint32_t ticks = get_ticks();
 	int initindex = tp->index;
-	
+
     memset(tp, 0x00, sizeof(struct tcpcb));
     tp->reass_fin_index = -1;
     tp->lport = lport;
     tp->index = initindex;
     // Congestion control algorithm.
-    
+
     // I only implement New Reno, so I'm not going to waste memory in each socket describing what the congestion algorithm is; it's always New Reno
 //    CC_ALGO(tp) = CC_DEFAULT();
 //    tp->ccv->type = IPPROTO_TCP;
 	tp->ccv->ccvc.tcp = tp;
-    
+
     tp->t_maxseg = tp->t_maxopd =
 //#ifdef INET6
 		/*isipv6 ? */V_tcp_v6mssdflt /*:*/
 //#endif /* INET6 */
 		/*V_tcp_mssdflt*/;
-    
+
     if (V_tcp_do_rfc1323)
 		tp->t_flags = (TF_REQ_SCALE|TF_REQ_TSTMP);
 	if (V_tcp_do_sack)
 		tp->t_flags |= TF_SACK_PERMIT;
 	TAILQ_INIT(&tp->snd_holes);
-    
+
     /*
 	 * Init srtt to TCPTV_SRTTBASE (0), so we can tell that we have no
 	 * rtt estimate.  Set rttvar so that srtt + 4 * rttvar gives
@@ -277,10 +277,10 @@ void initialize_tcb(struct tcpcb* tp, uint16_t lport, uint8_t* recvbuf, size_t r
 	tp->snd_cwnd = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 	tp->snd_ssthresh = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 	tp->t_rcvtime = ticks;
-	
+
 	/* From tcp_usr_attach in tcp_usrreq.c. */
 	tp->t_state = TCP6S_CLOSED;
-	
+
 	lbuf_init(&tp->sendbuf);
 	if (recvbuf) {
 	    cbuf_init(&tp->recvbuf, recvbuf, recvbuflen);
@@ -293,7 +293,7 @@ void
 tcp_discardcb(struct tcpcb *tp)
 {
 	tcp_cancel_timers(tp);
-	
+
 	/* Allow the CC algorithm to clean up after itself. */
 	if (CC_ALGO(tp)->cb_destroy != NULL)
 		CC_ALGO(tp)->cb_destroy(tp->ccv);
@@ -301,7 +301,7 @@ tcp_discardcb(struct tcpcb *tp)
 //	khelp_destroy_osd(tp->osd);
 
 //	CC_ALGO(tp) = NULL;
-	
+
 	tcp_free_sackholes(tp);
 #if 0 // Most of this is not applicable anymore. Above, I've copied the relevant parts.
 	struct inpcb *inp = tp->t_inpcb;
@@ -391,7 +391,7 @@ tcp_discardcb(struct tcpcb *tp)
 	if (tp->t_flags & TF_TOE)
 		tcp_offload_detach(tp);
 #endif
-		
+
 	tcp_free_sackholes(tp);
 
 #ifdef TCPPCAP
@@ -684,7 +684,7 @@ tcp_respond(struct tcpcb *tp, struct ip6_hdr* ip6gen, struct tcphdr *thgen,
 		flags = TH_ACK;
 	} else {
 		/*
-		 *  reuse the mbuf. 
+		 *  reuse the mbuf.
 		 * XXX MRT We inherrit the FIB, which is lucky.
 		 */
 		m_freem(m->m_next);
@@ -850,14 +850,14 @@ u_long
 tcp_maxmtu6(/*struct in_conninfo *inc,*/struct tcpcb* tp, struct tcp_ifcap *cap)
 {
 	u_long maxmtu = 0;
-	
+
 	KASSERT (tp != NULL, ("tcp_maxmtu6 with NULL tcpcb pointer"));
 	if (!IN6_IS_ADDR_UNSPECIFIED(&tp->faddr)) {
 		maxmtu = FRAMES_PER_SEG * FRAMECAP_6LOWPAN;
 	}
-	
+
 	return (maxmtu);
-	
+
 #if 0 // I rewrote this function above
 	struct route_in6 sro6;
 	struct ifnet *ifp;

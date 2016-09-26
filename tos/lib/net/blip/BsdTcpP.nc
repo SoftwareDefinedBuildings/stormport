@@ -1,12 +1,14 @@
 #include <bsdtcp.h>
 
+#include "blip_printf.h"
+
 #define NUMBSDTCPACTIVESOCKETS uniqueCount(UQ_BSDTCP_ACTIVE)
 #define NUMBSDTCPPASSIVESOCKETS uniqueCount(UQ_BSDTCP_PASSIVE)
 
 #define hz 1000 // number of ticks per second
 #define MILLIS_PER_TICK 1 // number of milliseconds per tick
 
-#define FRAMES_PER_SEG 3
+#define FRAMES_PER_SEG 4
 #define FRAMECAP_6LOWPAN (122 - 22 - 12) // Fragmentation limit: maximum frame size of the IP and TCP headers
 
 #define COMPRESSED_IP6HDR_SIZE (2 + 1 + 1 + 16 + 8) // IPHC header (2) + Next header (1) + Hop count (1) + Dest. addr (16) + Src. addr (8)
@@ -23,7 +25,7 @@ module BsdTcpP {
         interface Timer<TMilli>[uint8_t timerid];
         interface LocalTime<TMilli>;
     }
-    
+
 } implementation {
 #include <bsdtcp/cbuf.h>
 #include <bsdtcp/lbuf.h>
@@ -33,7 +35,7 @@ module BsdTcpP {
     #define SIG_CONN_ESTABLISHED 0x01
     #define SIG_RECVBUF_NOTEMPTY 0x02
     #define SIG_RCVD_FIN         0x04
-    
+
     #define CONN_LOST_NORMAL 0 // errno of 0 means that the connection closed gracefully
 
     uint32_t get_ticks();
@@ -61,7 +63,11 @@ module BsdTcpP {
 
     struct tcpcb tcbs[NUMBSDTCPACTIVESOCKETS];
     struct tcpcb_listen tcbls[NUMBSDTCPPASSIVESOCKETS];
-    
+
+    int segs_rcvd = 0;
+
+    int delack = 0;
+
     event void Boot.booted() {
         int i;
         tcp_init();
@@ -76,7 +82,7 @@ module BsdTcpP {
             tcbls[i].acceptinto = NULL;
         }
     }
-    
+
     event void Timer.fired[uint8_t timer_id]() {
         struct tcpcb* tp;
         if (call Timer.isRunning[timer_id]()) {
@@ -84,10 +90,10 @@ module BsdTcpP {
             return;
         }
         printf("Timer %d fired!\n", timer_id);
-        
+
         tp = &tcbs[timer_id >> 2];
         timer_id &= 0x3;
-        
+
         switch(timer_id) {
         case TOS_DELACK:
             printf("Delayed ACK\n");
@@ -112,30 +118,30 @@ module BsdTcpP {
             break;
         }
     }
-    
+
     void handle_signals(struct tcpcb* tp, uint8_t signals, uint32_t freedentries) {
         struct sockaddr_in6 addrport;
-        
+
         if (signals & SIG_CONN_ESTABLISHED) {
             addrport.sin6_port = tp->fport;
             memcpy(&addrport.sin6_addr, &tp->faddr, 0);
-        
+
             signal BSDTCPActiveSocket.connectDone[tp->index](&addrport);
         }
-        
+
         if (signals & SIG_RECVBUF_NOTEMPTY) {
             signal BSDTCPActiveSocket.receiveReady[tp->index](0);
         }
-        
+
         if (signals & SIG_RCVD_FIN) {
             signal BSDTCPActiveSocket.receiveReady[tp->index](1);
         }
-        
+
         if (freedentries > 0) {
             signal BSDTCPActiveSocket.sendDone[tp->index](freedentries);
         }
     }
-    
+
     event void IP.recv(struct ip6_hdr* iph, void* packet, size_t len,
                        struct ip6_metadata* meta) {
         // This is only being called if the IP address matches mine.
@@ -152,7 +158,9 @@ module BsdTcpP {
         wrapper.iov_base = packet;
         wrapper.iov_len = len;
         wrapper.iov_next = NULL;
-        
+
+        segs_rcvd++;
+
         th = (struct tcphdr*) packet;
         sport = th->th_sport; // network byte order
         dport = th->th_dport; // network byte order
@@ -171,7 +179,7 @@ module BsdTcpP {
             tcb = &tcbs[i];
             if (tcb->t_state != TCP6S_CLOSED && dport == tcb->lport && sport == tcb->fport && !memcmp(&iph->ip6_src, &tcb->faddr, sizeof(iph->ip6_src))) {
                 // Matches this active socket
-                printf("Matches active socket %d\n", i); 
+                printf("Matches active socket %d\n", i);
                 if (RELOOKUP_REQUIRED == tcp_input(iph, (struct tcphdr*) packet, &tcbs[i], NULL, &signals, &freedentries)) {
                     break;
                 } else {
@@ -192,27 +200,27 @@ module BsdTcpP {
         printf("Does not match any socket\n");
         tcp_dropwithreset(iph, th, NULL, len - (th->th_off << 2), ECONNREFUSED);
     }
-    
+
     event void IPAddress.changed(bool valid) {
     }
-    
+
     command int BSDTCPPassiveSocket.getID[uint8_t psockid]() {
         return tcbls[psockid].index;
     }
-    
+
     command int BSDTCPActiveSocket.getID[uint8_t asockid]() {
         return tcbs[asockid].index;
     }
-    
+
     command int BSDTCPActiveSocket.getState[uint8_t asockid]() {
         return tcbs[asockid].t_state;
     }
-    
+
     command void BSDTCPActiveSocket.getPeerInfo[uint8_t asockid](struct in6_addr** addr, uint16_t** port) {
     	*addr = &tcbs[asockid].faddr;
     	*port = &tcbs[asockid].fport;
     }
-    
+
     /* PORT is in network-byte order. */
     bool portisfree(uint16_t port) {
         int i;
@@ -228,7 +236,7 @@ module BsdTcpP {
         }
         return TRUE;
     }
-    
+
     command error_t BSDTCPActiveSocket.bind[uint8_t asockid](uint16_t port) {
         uint16_t oldport = tcbs[asockid].lport;
         port = htons(port);
@@ -240,7 +248,7 @@ module BsdTcpP {
         tcbs[asockid].lport = oldport;
         return EADDRINUSE;
     }
-    
+
     command error_t BSDTCPPassiveSocket.bind[uint8_t psockid](uint16_t port) {
         uint16_t oldport = tcbls[psockid].lport;
         port = htons(port);
@@ -252,7 +260,7 @@ module BsdTcpP {
         tcbls[psockid].lport = oldport;
         return EADDRINUSE;
     }
-    
+
     command error_t BSDTCPPassiveSocket.listenaccept[uint8_t psockid](int asockid, uint8_t* recvbuf, size_t recvbuflen, uint8_t* reassbmp) {
         tcbls[psockid].t_state = TCPS_LISTEN;
         if (tcbs[asockid].t_state != TCPS_CLOSED) {
@@ -263,7 +271,7 @@ module BsdTcpP {
         tcbls[psockid].acceptinto = &tcbs[asockid];
         return SUCCESS;
     }
-    
+
     command error_t BSDTCPActiveSocket.connect[uint8_t asockid](struct sockaddr_in6* addr, uint8_t* recvbuf, size_t recvbuflen, uint8_t* reassbmp) {
         struct tcpcb* tp = &tcbs[asockid];
         if (tp->t_state != TCPS_CLOSED) { // This is a check that I added
@@ -272,18 +280,18 @@ module BsdTcpP {
         initialize_tcb(tp, tp->lport, recvbuf, recvbuflen, reassbmp);
         return tcp6_usr_connect(tp, addr);
     }
-    
+
     command error_t BSDTCPActiveSocket.send[uint8_t asockid](struct lbufent* data, int moretocome, int* status) {
         struct tcpcb* tp = &tcbs[asockid];
         return (error_t) tcp_usr_send(tp, moretocome, data, status);
     }
-    
+
     command error_t BSDTCPActiveSocket.receive[uint8_t asockid](uint8_t* buffer, uint32_t len, size_t* bytessent) {
         struct tcpcb* tp = &tcbs[asockid];
         *bytessent = cbuf_read(&tp->recvbuf, buffer, len, 1);
         return (error_t) tcp_usr_rcvd(tp);
     }
-    
+
     command error_t BSDTCPActiveSocket.shutdown[uint8_t asockid](bool shut_rd, bool shut_wr) {
         int error = SUCCESS;
         if (shut_rd) {
@@ -297,30 +305,38 @@ module BsdTcpP {
         }
         return error;
     }
-    
+
     command error_t BSDTCPPassiveSocket.close[uint8_t psockid]() {
         tcbls[psockid].t_state = TCP6S_CLOSED;
         tcbls[psockid].acceptinto = NULL;
         return SUCCESS;
     }
-    
+
     command error_t BSDTCPActiveSocket.abort[uint8_t asockid]() {
         tcp_usr_abort(&tcbs[asockid]);
         return SUCCESS;
     }
-    
+
+    command void BSDTCPActiveSocket.getStats[uint8_t asockid](int* segsrcvd, int* segssent, int* sackssent, int* srtt, int* delacks) {
+        *segsrcvd = segs_rcvd;
+        *segssent = segs_sent;
+        *sackssent = sacks_sent;
+        *srtt = tcbs[asockid].t_srtt;
+        *delacks = delack;
+    }
+
     default event void BSDTCPPassiveSocket.acceptDone[uint8_t psockid](struct sockaddr_in6* addr, int asockid) {
     }
-    
+
     default event void BSDTCPActiveSocket.connectDone[uint8_t asockid](struct sockaddr_in6* addr) {
     }
-    
+
     default event void BSDTCPActiveSocket.sendDone[uint8_t asockid](uint32_t numentries) {
     }
-    
+
     default event void BSDTCPActiveSocket.receiveReady[uint8_t asockid](int gotfin) {
     }
-    
+
     default event void BSDTCPActiveSocket.connectionLost[uint8_t asockid](uint8_t how) {
     }
 
@@ -333,27 +349,36 @@ module BsdTcpP {
         th->th_sum = get_checksum(&msg->ip6_hdr.ip6_src, &msg->ip6_hdr.ip6_dst, msg->ip6_data, tlen);
         inet_ntop6(&msg->ip6_hdr.ip6_dst, destaddr, 50);
         printf("Sending message to %s\n", destaddr);
-        printf("Return value: %d\n", call IP.send(msg));
+        //printf("Return value: %d\n", call IP.send(msg));
+
+        segs_sent++;
+
+        if (0 != call IP.send(msg)) {
+            printf("tcp: dropped segment\n");
+        }
     }
-    
+
     uint32_t get_ticks() {
         return call LocalTime.get();
     }
-    
+
     uint32_t get_millis() {
         return call LocalTime.get();
     }
-    
+
     void set_timer(struct tcpcb* tcb, uint8_t timer_id, uint32_t delay) {
         uint8_t tcb_index = (uint8_t) tcb->index;
         uint8_t timer_index = (tcb_index << 2) | timer_id;
         if (timer_id > 0x3) {
-            printf("WARNING: setting out of bounds timer!\n");
+            //printf("WARNING: setting out of bounds timer!\n");
         }
-        printf("Setting timer %d, delay is %d\n", timer_index, delay * MILLIS_PER_TICK);
+        if (timer_index == 0) {
+            delack++;
+        }
+        //printf("Setting timer %d, delay is %d\n", timer_index, delay * MILLIS_PER_TICK);
         call Timer.startOneShot[timer_index](delay * MILLIS_PER_TICK);
     }
-    
+
     void stop_timer(struct tcpcb* tcb, uint8_t timer_id) {
         uint8_t tcb_index = (uint8_t) tcb->index;
         uint8_t timer_index = (tcb_index << 2) | timer_id;
@@ -363,7 +388,7 @@ module BsdTcpP {
         printf("Stopping timer %d\n", timer_index);
         call Timer.stop[timer_index]();
     }
-    
+
     void accepted_connection(struct tcpcb_listen* tpl, struct in6_addr* addr, uint16_t port) {
         struct sockaddr_in6 addrport;
         addrport.sin6_port = port;
@@ -372,7 +397,7 @@ module BsdTcpP {
         tpl->t_state = TCPS_CLOSED;
         tpl->acceptinto = NULL;
     }
-    
+
     void connection_lost(struct tcpcb* tcb, uint8_t errno) {
         signal BSDTCPActiveSocket.connectionLost[tcb->index](errno);
     }

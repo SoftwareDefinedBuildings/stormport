@@ -243,4 +243,3 @@ int lowpan_frag_get(uint8_t *frag, size_t len,
     else return (lowpan_buf - ieee_buf) + LOWMSG_FRAGN_LEN + extra_payload;
   }
 }
-

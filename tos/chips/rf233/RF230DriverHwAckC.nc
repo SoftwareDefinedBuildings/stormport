@@ -55,6 +55,8 @@ configuration RF230DriverHwAckC
 		interface Alarm<TRadio, tradio_size>;
 
 		interface PacketAcknowledgements;
+
+		interface RadioStats;
 	}
 
 	uses
@@ -74,7 +76,7 @@ configuration RF230DriverHwAckC
 
 implementation
 {
-	components RF230DriverHwAckP as DriverLayerP, 
+	components RF230DriverHwAckP as DriverLayerP,
 		HplRF230C, BusyWaitMicroC, MainC, ActiveMessageAddressC;
 
     components Ieee154AddressC;
@@ -134,4 +136,6 @@ implementation
 	DriverLayerP.ActiveMessageAddress -> ActiveMessageAddressC;
 	PacketAcknowledgements = DriverLayerP;
 	Ieee154PacketLayer = DriverLayerP;
+
+	RadioStats = DriverLayerP.RadioStats;
 }

@@ -58,6 +58,7 @@ module RF230DriverHwAckP
 		interface LinkPacketMetadata;
 
 		interface PacketAcknowledgements;
+		interface RadioStats;
 	}
 
 	uses
@@ -324,10 +325,22 @@ implementation
 		writeRegister(RF230_PHY_CC_CCA, RF230_CCA_MODE_VALUE | channel);
 
         //Enable four CSMA retries and 1 packet retries
-	    writeRegister(RF230_XAH_CTRL_0, 0b00011000);
+	    //writeRegister(RF230_XAH_CTRL_0, 0b00011000);
 
 		//For sensys demo, try fix ETX by not doing hardware retries:
 		//writeRegister(RF230_XAH_CTRL_0, 0b00001000);
+
+		//For TCP experiments, use one hardware retries and five CSMA probes
+	    //writeRegister(RF230_XAH_CTRL_0, 0b00011010);
+
+		// MIN_BE = 0, MAX_BE = 16 for CSMA
+		//writeRegister(0x2F, 0b11110000);
+
+		//For Software CSMA, use zero hardware retries and one CSMA probe (zero retries), with zero backoff
+		writeRegister(RF230_XAH_CTRL_0, 0b00000000);
+		writeRegister(0x2F, 0b00000000);
+
+		//writeRegister(0x0c, 0b10000000);
 
 		writeRegister(RF230_CSMA_SEED_1, 0);
 
@@ -539,6 +552,14 @@ tasklet_async command uint8_t RadioState.getChannel()
 
 	tasklet_norace message_t* txMsg;
 
+	uint32_t attempts[] = {0, 0};
+
+	command uint32_t* RadioStats.getAttempts() {
+		atomic {
+			return attempts;
+		}
+	}
+
 	tasklet_async command error_t RadioSend.send(message_t* msg)
 	{
 		uint16_t time;
@@ -548,8 +569,12 @@ tasklet_async command uint8_t RadioState.getChannel()
 		uint8_t upload1;
 		uint8_t upload2;
 
-		if( cmd != CMD_NONE || state != STATE_RX_ON || radioIrq || ! isSpiAcquired() )
+		volatile uint8_t x = 0;
+
+		if( cmd != CMD_NONE || state != STATE_RX_ON || radioIrq || ! isSpiAcquired() || (x = (0b00011111 & readRegister(0x01))) != 0x16)
+		{
 			return EBUSY;
+		}
 
 		length = (call PacketTransmitPower.isSet(msg) ?
 			call PacketTransmitPower.get(msg) : RF230_DEF_RFPOWER) & RF230_TX_PWR_MASK;
@@ -594,6 +619,8 @@ tasklet_async command uint8_t RadioState.getChannel()
 			call SpiResource.release();
 			return EBUSY;
 		}
+
+		atomic attempts[0]++;
 
 #ifndef RF230_SLOW_SPI
 		atomic
@@ -810,7 +837,8 @@ tasklet_async command uint8_t RadioState.getChannel()
 		// signal only if it has passed the CRC check
 		if( crcValid )
 		{
-            //printf("\033[31;1mRX MESSAGE\n\033[0m");
+			atomic attempts[1]++;
+            printf("\033[31;1mRX MESSAGE\n\033[0m");
 			rxMsg = signal RadioReceive.receive(rxMsg);
         }
         else
@@ -929,6 +957,11 @@ tasklet_async command uint8_t RadioState.getChannel()
 		call SpiResource.release();
 	}
 
+	task void signalReady()
+	{
+		signal RadioSend.ready();
+	}
+
 	tasklet_async event void Tasklet.run()
 	{
 		if( radioIrq )
@@ -950,8 +983,17 @@ tasklet_async command uint8_t RadioState.getChannel()
 			}
 		}
 
-		if( cmd == CMD_NONE && state == STATE_RX_ON && ! radioIrq )
-			signal RadioSend.ready();
+		if( cmd == CMD_NONE && state == STATE_RX_ON)
+		{
+			if (radioIrq)
+			{
+				post signalReady();
+			}
+			else
+			{
+				signal RadioSend.ready();
+			}
+		}
 
 		if( cmd == CMD_NONE )
 			post releaseSpi();

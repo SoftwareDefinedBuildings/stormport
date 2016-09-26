@@ -43,7 +43,7 @@
 #else
 
 //	#define RADIO_ASSERT(COND) if(!(COND)){atomic{while(1)printf("fail %s:%d\n",__FILE__,__LINE__);}}
-    #define RADIO_ASSERT(cond) for(;0;)
+    #define RADIO_ASSERT(cond) if (!(cond)) {char assert_buf[100]; snprintf(assert_buf, 100, "af: %s:%d\n", __FILE__, __LINE__); storm_write_payload(assert_buf, strlen(assert_buf)); } for(;0;)
 
 #endif
 

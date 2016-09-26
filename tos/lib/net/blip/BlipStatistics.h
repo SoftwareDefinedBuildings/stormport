@@ -22,7 +22,7 @@
 #ifndef _BLIP_STATISTICS_H_
 #define _BLIP_STATISTICS_H_
 
-/* Different IP components provide statistics about their operation. 
+/* Different IP components provide statistics about their operation.
  *
  * Structures with this information is available here.
  */
@@ -43,7 +43,7 @@ typedef nx_struct {
   nx_uint8_t rx_drop;     // L2 frags dropped due to 6lowpan failure
   nx_uint8_t tx_drop;     // L2 frags dropped due to link failures
   nx_uint8_t fw_drop;     // L2 frags dropped when forwarding due to queue overflow
-  nx_uint8_t rx_total;    // L2 frags received
+  nx_uint16_t rx_total;    // L2 frags received
   nx_uint8_t encfail;     // frags dropped due to send queue
 
 #ifdef BLIP_STATS_IP_MEM
@@ -89,6 +89,8 @@ typedef nx_struct {
   nx_uint16_t pkt_cnt;
   // number of transmissions for all packets
   nx_uint16_t tx_cnt;
+
+  nx_uint16_t retries[7];
 } retry_statistics_t;
 
 #endif

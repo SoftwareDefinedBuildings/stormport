@@ -351,6 +351,8 @@ void SENDINFO_DECR(struct send_info *si) {
     size_t buflen = len;
     int ret;
 
+    printf("\n\nI GOT A PACKET: %d\n\n\n", (int) len);
+
     /*
     atomic
     {
@@ -465,8 +467,12 @@ void SENDINFO_DECR(struct send_info *si) {
   task void sendTask() {
     struct send_entry *s_entry;
 
-    if (radioBusy || state != S_RUNNING) return;
-    if (call SendQueue.empty()) return;
+    if (radioBusy || state != S_RUNNING) {
+        return;
+    }
+    if (call SendQueue.empty()) {
+        return;
+    }
     // this does not dequeue
     s_entry = call SendQueue.head();
 
@@ -488,6 +494,7 @@ void SENDINFO_DECR(struct send_info *si) {
       dbg("Drops", "drops: sendTask: send failed\n");
       goto fail;
     } else {
+
       radioBusy = TRUE;
     }
 
@@ -530,7 +537,7 @@ void SENDINFO_DECR(struct send_info *si) {
     error_t rc = SUCCESS;
     if (state != S_RUNNING) {
         printf("radio is not running\n");
-      return EOFF;
+        return EOFF;
     }
 
 
@@ -658,9 +665,19 @@ void SENDINFO_DECR(struct send_info *si) {
     s_entry->info->link_fragment_attempts++;
 
     //populate retry stats
-    retry_stats.pkt_cnt += 1;
-    retry_stats.tx_cnt += (1 + call PacketLink.getRetries(msg));
-    
+    {
+        int retries = call PacketLink.getRetries(msg) / 2;
+        retry_stats.pkt_cnt += 1;
+        retry_stats.tx_cnt += (1 + retries);
+        if (!call PacketLink.wasDelivered(msg)) {
+            retries = 6;
+        }
+        if (retries > 6) {
+            //storm_write_payload("How is it possible?\n", 20);
+        }
+        retry_stats.retries[retries]++;
+    }
+
 
  //acknowledgements are not required for multicast packets, useful for fragmentation
    if (!call PacketLink.wasDelivered(msg) && ack_required) {

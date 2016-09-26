@@ -1,20 +1,25 @@
 #include <bsdtcp/lbuf.h>
 #include <bsdtcp/sys/errno.h>
 #include "driver.h"
+#include "BlipStatistics.h"
 
 // Number of active sockets and number of passive sockets must be the same
-#define NUMSOCKETS 3
+#define NUMSOCKETS 1
 
 module TCPDriverP {
     provides interface Driver;
     provides interface Init;
     uses interface BSDTCPActiveSocket[uint8_t aclient];
     uses interface BSDTCPPassiveSocket[uint8_t pclient];
+    //uses interface BlipStatistics<retry_statistics_t> as RetryStatistics;
+    //uses interface BlipStatistics<ip_statistics_t> as IPStatistics;
+    //uses interface RadioStats;
+    //uses interface TrafficMonitor;
 } implementation {
     #include <bsdtcp/socket.h>
     #include <bsdtcp/tcp.h>
     #include <bsdtcp/tcp_fsm.h>
-    
+
     typedef struct {
         tcp_callback_t connectDone;
         tcp_callback_t sendDone;
@@ -22,26 +27,26 @@ module TCPDriverP {
         tcp_callback_t connectionLost;
         uint8_t readycbs;
     } active_socket_t;
-    
+
     typedef struct {
         int acceptinginto;
         tcp_callback_t acceptDone;
         uint8_t readycbs;
     } passive_socket_t;
-    
+
     /* Bitmasks that record which sockets are currently allocated. */
     norace uint32_t activemask;
     norace uint32_t passivemask;
-    
+
     /* Socket structures. */
     norace active_socket_t activesockets[NUMSOCKETS];
     norace passive_socket_t passivesockets[NUMSOCKETS];
-    
+
     /* For remembering the callback. */
     norace bool passive;
     norace uint8_t socket_idx;
     norace uint8_t cb_type;
-    
+
     void clear_activesocket(int i) {
         activesockets[i].connectDone.addr = 0;
         activesockets[i].connectDone.type = TCP_CONNECT_DONE_CB;
@@ -53,13 +58,13 @@ module TCPDriverP {
         activesockets[i].connectionLost.addr = 0;
         activesockets[i].connectionLost.type = TCP_CONNECTION_LOST_CB;
     }
-    
+
     void clear_passivesocket(int i) {
         passivesockets[i].acceptinginto = -1;
         passivesockets[i].acceptDone.addr = 0;
         passivesockets[i].acceptDone.type = TCP_ACCEPT_DONE_CB;
     }
-    
+
     command error_t Init.init() {
         int i;
         activemask = 0;
@@ -74,7 +79,7 @@ module TCPDriverP {
         socket_idx = 0;
         cb_type = TCP_CONNECT_DONE_CB;
     }
-    
+
     /* Increments *CBT, and returns TRUE if it wrapped. */
     bool next_cb_type(uint8_t* cbt) {
         switch (*cbt) {
@@ -97,7 +102,7 @@ module TCPDriverP {
             return FALSE;
         }
     }
-    
+
     tcp_callback_t* get_callback(uint8_t sock_idx, uint8_t cbt) {
         switch (cbt) {
         case TCP_CONNECT_DONE_CB:
@@ -114,7 +119,7 @@ module TCPDriverP {
             return NULL;
         }
     }
-    
+
     command driver_callback_t Driver.peek_callback() {
         uint8_t start_idx = socket_idx;
         uint8_t start_cb_type = cb_type;
@@ -133,7 +138,7 @@ module TCPDriverP {
         } while (socket_idx != start_idx && cb_type != start_cb_type);
         return NULL;
     }
-    
+
     command void Driver.pop_callback() {
         if (IS_PASSIVE_CB(cb_type)) {
             passivesockets[socket_idx].readycbs &= ~cb_type;
@@ -144,90 +149,93 @@ module TCPDriverP {
             }
         }
     }
-    
+
     event void BSDTCPPassiveSocket.acceptDone[uint8_t pi](struct sockaddr_in6* addr, int asockid) {
         passivesockets[pi].acceptDone.arg0 = (uint8_t) passivesockets[pi].acceptinginto;
         passivesockets[pi].readycbs |= TCP_ACCEPT_DONE_CB;
         passivesockets[pi].acceptinginto = -1;
         printf("Accepted connection!\n");
     }
-    
+
     event void BSDTCPActiveSocket.connectDone[uint8_t ai](struct sockaddr_in6* addr) {
         activesockets[ai].readycbs |= TCP_CONNECT_DONE_CB;
         printf("Connection done!\n");
     }
-    
+
     event void BSDTCPActiveSocket.receiveReady[uint8_t ai](int gotfin) {
         activesockets[ai].recvReady.arg0 = (uint8_t) gotfin;
         activesockets[ai].readycbs |= TCP_RECV_READY_CB;
         printf("Receive ready!\n");
     }
-    
+
     event void BSDTCPActiveSocket.sendDone[uint8_t ai](uint32_t numentries) {
         activesockets[ai].sendDone.arg0 += (uint8_t) numentries;
         activesockets[ai].readycbs |= TCP_SEND_DONE_CB;
         printf("Send done!\n");
     }
-    
+
     event void BSDTCPActiveSocket.connectionLost[uint8_t ai](uint8_t how) {
         activesockets[ai].connectionLost.arg0 = how;
         activesockets[ai].readycbs |= TCP_CONNECTION_LOST_CB;
         printf("Connection lost!\n");
     }
-    
+
     default command error_t BSDTCPPassiveSocket.bind[uint8_t pundef](uint16_t port) {
         return EBADF;
     }
-    
+
     default command error_t BSDTCPPassiveSocket.listenaccept[uint8_t pundef] (int activesockid, uint8_t* recvbuf, size_t recvbuflen, uint8_t* reassbmp) {
         return EBADF;
     }
-    
+
     default command error_t BSDTCPPassiveSocket.close[uint8_t pundef] () {
         return EBADF;
     }
-    
+
     default command error_t BSDTCPActiveSocket.bind[uint8_t aundef](uint16_t port) {
         return EBADF;
     }
-    
+
     default command int BSDTCPPassiveSocket.getID[uint8_t pundef]() {
         return -1; // BE CAREFUL
     }
-    
+
     default command int BSDTCPActiveSocket.getID[uint8_t aundef]() {
         return -1; // BE CAREFUL
     }
-    
+
     default command int BSDTCPActiveSocket.getState[uint8_t aundef]() {
         return TCPS_CLOSED; // BE CAREFUL
     }
-    
+
     default command void BSDTCPActiveSocket.getPeerInfo[uint8_t aundef](struct in6_addr** addr, uint16_t** port) {
     	*addr = NULL; // BE CAREFUL
     	*port = NULL;
     }
-    
+
     default command error_t BSDTCPActiveSocket.connect[uint8_t aundef](struct sockaddr_in6* addr, uint8_t* recvbuf, size_t recvbuflen, uint8_t* reassbmp) {
         return EBADF;
     }
-    
+
     default command error_t BSDTCPActiveSocket.send[uint8_t aundef](struct lbufent* data, int moretocome, int* status) {
         return EBADF;
     }
-    
+
     default command error_t BSDTCPActiveSocket.receive[uint8_t aundef](uint8_t* buffer, uint32_t length, size_t* bytessent) {
         return EBADF;
     }
-    
+
     default command error_t BSDTCPActiveSocket.shutdown[uint8_t aundef](bool reads, bool writes) {
         return EBADF;
     }
-    
+
     default command error_t BSDTCPActiveSocket.abort[uint8_t aundef]() {
         return EBADF;
     }
-    
+
+    default command void BSDTCPActiveSocket.getStats[uint8_t asockid](int* segsrcvd, int* segssent, int* sackssent, int* srtt, int* delacks) {
+    }
+
     int alloc_fd(uint32_t* mask, bool (*isvalid)(int) ) {
         int i;
         for (i = 0; i < NUMSOCKETS; i++) {
@@ -238,11 +246,11 @@ module TCPDriverP {
         }
         return -1;
     }
-    
+
     bool always_true(int pi) {
         return TRUE;
     }
-    
+
     int alloc_pfd() {
         int pfd = alloc_fd(&passivemask, always_true);
         if (pfd != -1) {
@@ -250,15 +258,15 @@ module TCPDriverP {
         }
         return pfd + NUMSOCKETS;
     }
-    
+
     bool active_isclosed(int ai) {
         return TCPS_CLOSED == call BSDTCPActiveSocket.getState[ai]();
     }
-    
+
     bool active_istimewait(int ai) {
         return TCPS_TIME_WAIT == call BSDTCPActiveSocket.getState[ai]();
     }
-    
+
     int alloc_afd() {
         int afd;
         // First, try to get a socket that's closed.
@@ -273,25 +281,25 @@ module TCPDriverP {
         }
         return afd;
     }
-    
+
     void dealloc_fd(uint32_t fd, uint32_t* mask) {
         *mask &= ~(1 << fd);
     }
-    
+
     void dealloc_afd(int afd) {
         dealloc_fd((uint32_t) afd, &activemask);
         clear_activesocket(afd);
     }
-    
+
     void dealloc_pfd(int pfd) {
         dealloc_fd((uint32_t) pfd, &passivemask);
         clear_passivesocket(pfd);
     }
-    
+
     inline int check_fd(uint32_t fd, uint32_t* mask) {
         return (*mask & (1 << fd));
     }
-    
+
     int decode_fd(uint32_t rawfd, bool* passive) {
         if (rawfd >= NUMSOCKETS) {
             *passive = TRUE;
@@ -307,7 +315,7 @@ module TCPDriverP {
         }
         return (int) rawfd;
     }
-    
+
     async command syscall_rv_t Driver.syscall_ex(uint32_t number, uint32_t arg0, uint32_t arg1, uint32_t arg2, uint32_t* argx) {
         struct sockaddr_in6 addr;
         bool passive;
@@ -321,6 +329,10 @@ module TCPDriverP {
         struct in6_addr* addrptr;
         uint16_t* portptr;
         tcp_callback_t* tostore;
+        union {
+            retry_statistics_t rstats;
+            ip_statistics_t istats;
+        } stats;
         syscall_rv_t rv = (syscall_rv_t) EBADF;
         fd = decode_fd(arg0, &passive); // most syscalls need this info
         svc_id = number & 0xFF;
@@ -472,6 +484,25 @@ module TCPDriverP {
             	*((uint16_t*) argx[0]) = ntohs(*portptr);
             	rv = (syscall_rv_t) 0;
             	break;
+            /*case 0x12: // stats(fd, segssent, sackssent, srtt)
+                if (fd < 0 || passive) {
+                    break;
+                }
+                call BSDTCPActiveSocket.getStats[fd]((int*) arg1, (int*) arg2, (int*) argx[0], (int*) argx[1], (int*) argx[2]);
+                call RetryStatistics.get(&stats.rstats);
+                *((int*) argx[3]) = stats.rstats.tx_cnt;
+                {
+                    char str[100];
+                    uint32_t* attempts = call RadioStats.getAttempts();
+                    snprintf(str, 100, "rsa: %d, rra: %d, tx: %d, rx: %d, txf: %d\n", attempts[0], attempts[1],
+                    call TrafficMonitor.getTxMessages(), call TrafficMonitor.getRxMessages(), call TrafficMonitor.getTxErrors());
+                    storm_write_payload(str, strlen(str));
+                    snprintf(str, 100, "%d, %d, %d, %d, %d, %d, ND: %d\n", stats.rstats.retries[0], stats.rstats.retries[1], stats.rstats.retries[2], stats.rstats.retries[3], stats.rstats.retries[4], stats.rstats.retries[5], stats.rstats.retries[6]);
+                    storm_write_payload(str, strlen(str));
+                }
+                call IPStatistics.get(&stats.istats);
+                *((int*) argx[4]) = stats.istats.rx_total;
+                break;*/
             default:
                 printf("Doing nothing\n");
                 break;

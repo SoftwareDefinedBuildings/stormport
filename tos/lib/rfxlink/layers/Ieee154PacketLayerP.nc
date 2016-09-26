@@ -36,7 +36,7 @@
 
 generic module Ieee154PacketLayerP()
 {
-	provides 
+	provides
 	{
 		interface Ieee154PacketLayer;
 		interface Ieee154Packet;
@@ -56,21 +56,21 @@ implementation
 
 	enum
 	{
-		IEEE154_DATA_FRAME_MASK = (IEEE154_TYPE_MASK << IEEE154_FCF_FRAME_TYPE) 
-			| (1 << IEEE154_FCF_INTRAPAN) 
-			| (IEEE154_ADDR_MASK << IEEE154_FCF_DEST_ADDR_MODE) 
+		IEEE154_DATA_FRAME_MASK = (IEEE154_TYPE_MASK << IEEE154_FCF_FRAME_TYPE)
+			| (1 << IEEE154_FCF_INTRAPAN)
+			| (IEEE154_ADDR_MASK << IEEE154_FCF_DEST_ADDR_MODE)
 			| (IEEE154_ADDR_MASK << IEEE154_FCF_SRC_ADDR_MODE),
 
-		IEEE154_DATA_FRAME_VALUE = (IEEE154_TYPE_DATA << IEEE154_FCF_FRAME_TYPE) 
-			| (1 << IEEE154_FCF_INTRAPAN) 
-			| (IEEE154_ADDR_SHORT << IEEE154_FCF_DEST_ADDR_MODE) 
+		IEEE154_DATA_FRAME_VALUE = (IEEE154_TYPE_DATA << IEEE154_FCF_FRAME_TYPE)
+			| (1 << IEEE154_FCF_INTRAPAN)
+			| (IEEE154_ADDR_SHORT << IEEE154_FCF_DEST_ADDR_MODE)
 			| (IEEE154_ADDR_SHORT << IEEE154_FCF_SRC_ADDR_MODE),
 
-		IEEE154_DATA_FRAME_PRESERVE = (1 << IEEE154_FCF_ACK_REQ) 
+		IEEE154_DATA_FRAME_PRESERVE = (1 << IEEE154_FCF_ACK_REQ)
 			| (1 << IEEE154_FCF_FRAME_PENDING),
 
 		IEEE154_ACK_FRAME_LENGTH = 3,	// includes the FCF, DSN
-		IEEE154_ACK_FRAME_MASK = (IEEE154_TYPE_MASK << IEEE154_FCF_FRAME_TYPE), 
+		IEEE154_ACK_FRAME_MASK = (IEEE154_TYPE_MASK << IEEE154_FCF_FRAME_TYPE),
 		IEEE154_ACK_FRAME_VALUE = (IEEE154_TYPE_ACK << IEEE154_FCF_FRAME_TYPE),
 	};
 
@@ -187,12 +187,35 @@ implementation
 
 	async command uint16_t Ieee154PacketLayer.getSrcAddr(message_t* msg)
 	{
-		return getHeader(msg)->src;
+		ieee154_simple_header_t* hdr = getHeader(msg);
+
+        /* Be careful; if the dest addr. is 64-bit we need to read a different two bytes. */
+        if ((hdr->fcf & 0x0c00) == 0x0c00)
+        {
+            ieee154_long_addr_header_t* longhdr = (ieee154_long_addr_header_t*) hdr;
+            return longhdr->src[0];
+        }
+
+        return hdr->src;
 	}
 
 	async command void Ieee154PacketLayer.setSrcAddr(message_t* msg, uint16_t addr)
-	{	
-		getHeader(msg)->src = addr;
+	{
+        nxle_uint16_t* srcptr;
+        ieee154_simple_header_t* hdr = getHeader(msg);
+
+        /* Be careful; if the dest addr. is 64-bit we need to read a different two bytes. */
+        if ((hdr->fcf & 0x0c00) == 0x0c00)
+        {
+            ieee154_long_addr_header_t* longhdr = (ieee154_long_addr_header_t*) hdr;
+            srcptr = &longhdr->src[0];
+        }
+        else
+        {
+            srcptr = &getHeader(msg)->src;
+        }
+
+        *srcptr = addr;
 	}
 
 	async command bool Ieee154PacketLayer.requiresAckWait(message_t* msg)
@@ -236,12 +259,12 @@ implementation
 	{
 		return call Ieee154PacketLayer.localAddr();
 	}
- 
+
 	command ieee154_saddr_t Ieee154Packet.destination(message_t* msg)
 	{
 		return call Ieee154PacketLayer.getDestAddr(msg);
 	}
- 
+
 	command ieee154_saddr_t Ieee154Packet.source(message_t* msg)
 	{
 		return call Ieee154PacketLayer.getSrcAddr(msg);

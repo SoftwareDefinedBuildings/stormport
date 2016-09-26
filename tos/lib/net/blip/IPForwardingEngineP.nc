@@ -128,7 +128,7 @@ module IPForwardingEngineP {
     printf("adding route with length %d on if %d\n", prefix_len_bits, ifindex);
 #endif
     /* no reason to support non-byte length prefixes for now... */
-    if (prefix_len_bits % 8 != 0 || prefix_len_bits > 128) 
+    if (prefix_len_bits % 8 != 0 || prefix_len_bits > 128)
     {
 #ifndef BLIP_STFU
         printf("\033[31;1minvalid prefix length\n\033[0m");
@@ -238,6 +238,7 @@ module IPForwardingEngineP {
     struct in6_iid *iid = call Pool.get();
     if (iid != NULL)
       memcpy(iid->data, &next->s6_addr[8], 8);
+    printf("Sending: %d %d\n", (int) ifindex, ROUTE_IFACE_154);
     rc = call IPForward.send[ifindex](next, pkt, iid);
     if (rc != SUCCESS && iid != NULL)
       call Pool.put(iid);
@@ -328,6 +329,7 @@ module IPForwardingEngineP {
     if (call IPAddress.isLocalAddress(&iph->ip6_dst)) {
       /* local delivery */
       signal IP.recv(iph, payload, len, meta);
+      return;
     } else {
       /* forwarding */
       uint8_t nxt_hdr = IPV6_ROUTING;
@@ -363,7 +365,6 @@ module IPForwardingEngineP {
         }
 #endif
 
-
         if (next_hop_entry == NULL) {
           /* oops, no route. */
           /* RPL will reencapsulate the packet in some cases here */
@@ -386,9 +387,9 @@ module IPForwardingEngineP {
                next_hop_entry->next_hop.s6_addr32[2] = iph->ip6_dst.s6_addr32[2];
                next_hop_entry->next_hop.s6_addr32[3] = iph->ip6_dst.s6_addr32[3];
         }
+#endif
         next_hop = &next_hop_entry->next_hop;
         next_hop_ifindex = next_hop_entry->ifindex;
-#endif
       }
 
       memcpy(&pkt.ip6_hdr, iph, sizeof(struct ip6_hdr));

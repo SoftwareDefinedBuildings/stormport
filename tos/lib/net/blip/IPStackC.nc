@@ -25,6 +25,7 @@
  * @author Stephen Dawson-Haggerty <stevedh@eecs.berkeley.edu>
  */
 #include <iprouting.h>
+#include "BlipStatistics.h"
 
 configuration IPStackC {
   provides {
@@ -35,6 +36,8 @@ configuration IPStackC {
     interface NeighborDiscovery;
     interface ForwardingTableEvents;
     interface ForwardingEvents[uint8_t ifindex];
+    interface BlipStatistics<retry_statistics_t> as RetryStatistics;
+    interface BlipStatistics<ip_statistics_t> as IPStatistics;
   }
   uses {
     /* provided to stack components to turn themselves on and off */
@@ -48,6 +51,8 @@ configuration IPStackC {
     IPNeighborDiscoveryC as NdC,
     IPDispatchC;
   components IPStackControlP;
+  RetryStatistics = IPDispatchC;
+  IPStatistics = IPDispatchC;
   SplitControl = IPStackControlP.SplitControl;
   IPStackControlP.StdControl = StdControl;
   IPStackControlP.RoutingControl = RoutingControl;

@@ -245,7 +245,7 @@ implementation
 	async command uint32_t TrafficMonitor.getActiveTime()
 	{
 		uint32_t atime, localTime;
-		
+
 		localTime = call LocalTime.get();
 
 		atomic
