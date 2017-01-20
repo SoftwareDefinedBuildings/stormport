@@ -196,7 +196,7 @@ implementation
             }
             case 0x05: //cancel(id) ->int32 0 for ok -1 for fail
             {
-                if (arg0 >= BUFSIZE) return (uint32_t)-1;
+                if (arg0 >= BUFSIZE) return (uint32_t) -1;
                 if (timer_buffer[arg0].flags == 0) return (uint32_t) -2;
                 timer_buffer[arg0].flags = 0;
                 return 0;

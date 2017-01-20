@@ -223,7 +223,7 @@ implementation
                 uint8_t port = arg0 >> 8;
                 uint8_t pin = arg0 & 0xFF;
                 uint32_t pinmask = 1 << (arg0 & 0xFF);
-                if ((irq_allowed[port] & pinmask == 0))
+                if ((irq_allowed[port] & pinmask) == 0)
                     return (uint32_t) -1;
                 irq_callback[port][pin].addr = arg2;
                 irq_callback[port][pin].r = (void*) argx[0];

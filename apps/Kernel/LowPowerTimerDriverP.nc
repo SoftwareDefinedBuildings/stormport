@@ -43,7 +43,7 @@ implementation
 
     void enqueue_cb(uint16_t idx)
     {
-        if ((cb_widx + 1) & (CBQUEUESIZE-1) == cb_ridx)
+        if (((cb_widx + 1) & (CBQUEUESIZE - 1)) == cb_ridx)
             return; //drop
         callback_queue[cb_widx] = timer_buffer[idx].cb;
         cb_widx = (cb_widx+1) & (CBQUEUESIZE-1);
